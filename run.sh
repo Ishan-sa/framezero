@@ -22,25 +22,29 @@ done
 cd "$(dirname "$0")"
 say() { printf '\n\033[1m== %s\033[0m\n' "$1" >&2; }
 
-say "1/5 scrape @$HANDLE"
+say "1/6 scrape @$HANDLE"
 python3 bin/scrape.py "$HANDLE"
 
-say "2/5 rank (top $TOP, bottom $BOTTOM)"
+say "2/6 rank (top $TOP, bottom $BOTTOM)"
 python3 bin/rank.py "$HANDLE" --top "$TOP" --bottom "$BOTTOM"
 
-say "3/5 fetch media"
+say "3/6 fetch media"
 python3 bin/fetch.py "$HANDLE"
 
-say "4/5 transcribe"
+say "4/6 transcribe"
 python3 bin/listen.py "$HANDLE"
 
-say "5/5 build corpus"
+say "5/6 build corpus"
 python3 bin/corpus.py "$HANDLE"
+
+say "6/6 mechanical deltas"
+python3 bin/report.py "$HANDLE" > /dev/null
 
 cat >&2 <<EOF
 
 Done. Now hand these to your agent:
 
+  data/$HANDLE/report.md     the countable deltas, measured first
   data/$HANDLE/corpus.md     the evidence
   prompts/extract.md         how to analyse it
   prompts/emit.md            how to turn the analysis into skills

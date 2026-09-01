@@ -90,10 +90,20 @@ python3 bin/rank.py    <handle>              # outlier scoring, pick study set
 python3 bin/fetch.py   <handle>              # download + extract 16kHz audio
 python3 bin/listen.py  <handle>              # local transcription
 python3 bin/corpus.py  <handle>              # assemble one markdown corpus
+python3 bin/report.py  <handle>              # mechanical winner/control deltas
 ```
 
-Then hand `data/<handle>/corpus.md` to your agent along with
-`prompts/extract.md`, and it writes the skills.
+Or `./run.sh <handle>` for all six.
+
+Then hand `data/<handle>/report.md` and `data/<handle>/corpus.md` to your
+agent along with `prompts/extract.md`, and it writes the skills.
+
+`report.py` matters more than it looks. An agent reading transcripts will find
+patterns whether or not they are there, so the countable features get measured
+before the qualitative pass starts — each one marked strong, weak or dead by
+the size of the cohort split, with whole-catalogue correlations run separately
+to kill findings that only look real at the tails. On its first run it caught
+two errors in a careful hand analysis of the same data.
 
 Each stage writes to disk and reads the previous stage's output, so any stage
 reruns on its own. `scrape.py` resumes from whatever is already there.

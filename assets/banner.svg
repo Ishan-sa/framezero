@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="framezero — reverse-engineer what actually works on a creator's reels">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1117"/>
+      <stop offset="55%" stop-color="#12161f"/>
+      <stop offset="100%" stop-color="#161b27"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7c5cff"/>
+      <stop offset="50%" stop-color="#4f8cff"/>
+      <stop offset="100%" stop-color="#28d9a4"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4f8cff"/>
+      <stop offset="100%" stop-color="#7c5cff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="340" rx="20" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="1199" height="339" rx="20" fill="none" stroke="#2a3040" stroke-width="1"/>
+
+  <!-- film-strip perforations, left and right -->
+  <g fill="#1e2432">
+    <rect x="26" y="40"  width="26" height="34" rx="6"/>
+    <rect x="26" y="90"  width="26" height="34" rx="6"/>
+    <rect x="26" y="140" width="26" height="34" rx="6"/>
+    <rect x="26" y="190" width="26" height="34" rx="6"/>
+    <rect x="26" y="240" width="26" height="34" rx="6"/>
+    <rect x="1148" y="40"  width="26" height="34" rx="6"/>
+    <rect x="1148" y="90"  width="26" height="34" rx="6"/>
+    <rect x="1148" y="140" width="26" height="34" rx="6"/>
+    <rect x="1148" y="190" width="26" height="34" rx="6"/>
+    <rect x="1148" y="240" width="26" height="34" rx="6"/>
+  </g>
+
+  <!-- frame brackets -->
+  <g stroke="#3b445c" stroke-width="3" fill="none" stroke-linecap="round">
+    <path d="M100 74 L100 46 L136 46"/>
+    <path d="M1100 74 L1100 46 L1064 46"/>
+    <path d="M100 266 L100 294 L136 294"/>
+    <path d="M1100 266 L1100 294 L1064 294"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="600" y="168" text-anchor="middle"
+        font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+        font-size="104" font-weight="700" letter-spacing="-3">
+    <tspan fill="#e6edf3">frame</tspan><tspan fill="url(#accent)">zero</tspan>
+  </text>
+
+  <!-- tagline -->
+  <text x="600" y="216" text-anchor="middle"
+        font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+        font-size="19" fill="#8b98ad" letter-spacing="2.5">
+    MEASURE WHAT WORKS.  WRITE IN THEIR VOICE.
+  </text>
+
+  <!-- outlier bar motif -->
+  <g>
+    <rect x="452" y="266" width="14" height="18" rx="3" fill="#2c3446"/>
+    <rect x="474" y="260" width="14" height="24" rx="3" fill="#2c3446"/>
+    <rect x="496" y="268" width="14" height="16" rx="3" fill="#2c3446"/>
+    <rect x="518" y="256" width="14" height="28" rx="3" fill="#2c3446"/>
+    <rect x="540" y="264" width="14" height="20" rx="3" fill="#2c3446"/>
+    <rect x="562" y="258" width="14" height="26" rx="3" fill="#2c3446"/>
+    <rect x="584" y="238" width="14" height="46" rx="3" fill="url(#bar)"/>
+    <rect x="606" y="262" width="14" height="22" rx="3" fill="#2c3446"/>
+    <rect x="628" y="254" width="14" height="30" rx="3" fill="#2c3446"/>
+    <rect x="650" y="266" width="14" height="18" rx="3" fill="#2c3446"/>
+    <rect x="672" y="260" width="14" height="24" rx="3" fill="#2c3446"/>
+    <rect x="694" y="268" width="14" height="16" rx="3" fill="#2c3446"/>
+    <rect x="716" y="262" width="14" height="22" rx="3" fill="#2c3446"/>
+    <rect x="738" y="256" width="14" height="28" rx="3" fill="#2c3446"/>
+  </g>
+</svg>

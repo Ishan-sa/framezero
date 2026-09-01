@@ -27,7 +27,7 @@ def get(url, handle):
         return json.load(r)
 
 
-def get_retry(url, handle, tries=6, base=45):
+def get_retry(url, handle, tries=12, base=45, cap=1800):
     """Back off through a throttle. IG's 401 here means 'slow down', not 'no'."""
     for n in range(tries):
         try:
@@ -35,12 +35,12 @@ def get_retry(url, handle, tries=6, base=45):
         except urllib.error.HTTPError as e:
             if e.code not in (401, 429, 403, 500, 502, 503):
                 raise
-            wait = base * (2 ** n) + random.uniform(0, 15)
+            wait = min(base * (2 ** n), cap) + random.uniform(0, 20)
             print(f"    HTTP {e.code} — backing off {wait:.0f}s "
                   f"(attempt {n+1}/{tries})", file=sys.stderr, flush=True)
             time.sleep(wait)
         except (urllib.error.URLError, TimeoutError) as e:
-            wait = base * (2 ** n)
+            wait = min(base * (2 ** n), cap)
             print(f"    {e} — retry in {wait:.0f}s", file=sys.stderr, flush=True)
             time.sleep(wait)
     return None
@@ -94,6 +94,9 @@ def save(path, profile, posts, cursor, done):
     return uniq
 
 
+TRIES = 12
+
+
 def scrape(handle, max_pages=60, delay=25.0):
     out = ROOT / "data" / handle
     out.mkdir(parents=True, exist_ok=True)
@@ -116,7 +119,7 @@ def scrape(handle, max_pages=60, delay=25.0):
         url = f"https://www.instagram.com/api/v1/feed/user/{uid}/?count=33"
         if cursor:
             url += f"&max_id={cursor}"
-        d = get_retry(url, handle)
+        d = get_retry(url, handle, tries=TRIES)
         if d is None:
             print("  exhausted retries — saving what we have", file=sys.stderr, flush=True)
             break
@@ -144,5 +147,7 @@ if __name__ == "__main__":
     ap.add_argument("handle")
     ap.add_argument("--max-pages", type=int, default=60)
     ap.add_argument("--delay", type=float, default=25.0)
+    ap.add_argument("--tries", type=int, default=12)
     a = ap.parse_args()
+    globals()["TRIES"] = a.tries
     scrape(a.handle.lstrip("@"), a.max_pages, a.delay)

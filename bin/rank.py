@@ -54,7 +54,7 @@ def main(handle, top, bottom, window):
     ranked = sorted([r for r in reels if r["outlier"] is not None],
                     key=lambda r: r["outlier"], reverse=True)
     winners = ranked[:top]
-    controls = ranked[-bottom:] if len(ranked) > top + bottom else []
+    controls = ranked[-bottom:] if len(ranked) >= top + bottom else []
     for r in winners:
         r["cohort"] = "winner"
     for r in controls:

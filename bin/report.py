@@ -13,13 +13,26 @@ Writes data/<handle>/report.md and prints it.
 """
 import json, pathlib, re, argparse, math, statistics as st, sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import project as P
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Entities big enough that naming one borrows reach. Extend per niche.
-FAMOUS = (r"\b(ChatGPT|OpenAI|Claude|Anthropic|Cursor|Google|Gemini|Meta|Apple|"
-          r"Microsoft|China|DeepSeek|DeepSeq|Sora|Perplexity|Notion|Figma|Canva|"
-          r"Lovable|Bolt|Manus|Replit|Grok|Midjourney|Photoshop|YouTube|Instagram|"
-          r"LinkedIn|Spotify|Netflix|Amazon|Tesla|Nvidia|Slack|Zapier|n8n)\b")
+def famous_re(project):
+    """Entities big enough that naming one borrows reach.
+
+    Never hardcode this. It is niche-specific by definition, so it comes from
+    the project -- either the vocabulary you declared or, better, the lexicon
+    derived from what actually recurs across that niche's biggest accounts.
+    """
+    if not project:
+        return None
+    cfg = P.load(project)
+    words = cfg["niche"].get("lexicon") or cfg["niche"].get("vocabulary") or []
+    if not words:
+        return None
+    alts = "|".join(sorted((re.escape(w) for w in words), key=len, reverse=True))
+    return re.compile(rf"(?<!\w)({alts})(?!\w)", re.I)
 ANON = (r"(I just found|I found this|there'?s a (free|new)|this website|this tool|"
         r"this new AI tool|a free AI (tool|website|app))")
 NEWSPEG = r"\b(just (released|launched|dropped|leaked|shipped|announced)|now (available|live))\b"
@@ -32,18 +45,19 @@ def body_of(path):
     return " ".join(lines).strip()
 
 
-def features(text, duration):
+def features(text, duration, famous):
     sents = re.split(r"(?<=[.?!])\s+", text)
     open2 = " ".join(sents[:2])
     words = text.split()
     return {
         "number in first 2 sentences": bool(re.search(r"[\d$]", open2)),
-        "famous entity named in open": bool(re.search(FAMOUS, open2, re.I)),
+        "famous entity named in open": bool(famous.search(open2)) if famous else None,
         "anonymous-subject opener": bool(re.search(ANON, open2, re.I)),
         "news peg in open": bool(re.search(NEWSPEG, open2, re.I)),
         "question in first 2 sentences": "?" in open2,
         "first person in sentence 1": bool(re.search(r"\b(I|I'm|I've|my)\b", sents[0])),
-        "_famous_count": len(set(w.lower() for w in re.findall(FAMOUS, open2, re.I))),
+        "_famous_count": (len(set(w.lower() for w in famous.findall(open2)))
+                          if famous else None),
         "_words": len(words),
         "_hedges": len(re.findall(HEDGE, text, re.I)),
         "_wpm": len(words) / duration * 60 if duration else None,
@@ -64,11 +78,15 @@ def corr(pairs):
     return (num / den if den else None), n
 
 
-def main(handle):
+def main(handle, project):
     d = ROOT / "data" / handle
     ranked = json.loads((d / "ranked.json").read_text())
     tdir = d / "transcripts"
 
+    famous = famous_re(project)
+    if project and famous is None:
+        print("  no niche lexicon yet — run: bin/project.py lexicon <project>",
+              file=sys.stderr)
     coh = {"winner": [], "control": []}
     for r in ranked["study_set"]:
         t = tdir / f"{r['code']}.txt"
@@ -77,7 +95,7 @@ def main(handle):
         text = body_of(t)
         if len(text.split()) < 15:        # music-only or failed transcript
             continue
-        coh[r["cohort"]].append((r, features(text, r.get("duration"))))
+        coh[r["cohort"]].append((r, features(text, r.get("duration"), famous)))
 
     W, C = coh["winner"], coh["control"]
     if not W or not C:
@@ -92,7 +110,8 @@ def main(handle):
          "## Opening features\n",
          "| feature | winners | controls | split |", "|---|---|---|---|"]
 
-    flags = [k for k in W[0][1] if not k.startswith("_")]
+    flags = [k for k in W[0][1]
+             if not k.startswith("_") and W[0][1][k] is not None]
     for k in flags:
         w = sum(1 for _, f in W if f[k]); c = sum(1 for _, f in C if f[k])
         pw, pc = 100 * w / len(W), 100 * c / len(C)
@@ -138,4 +157,6 @@ def main(handle):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("handle")
-    main(ap.parse_args().handle.lstrip("@"))
+    ap.add_argument("--project", help="use this project's niche lexicon")
+    a = ap.parse_args()
+    main(a.handle.lstrip("@"), a.project)

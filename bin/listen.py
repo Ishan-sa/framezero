@@ -14,16 +14,18 @@ Writes data/<handle>/transcripts/<code>.json and .txt (timestamped)
 """
 import json, subprocess, pathlib, argparse, sys, time
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import project as P
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MODEL = pathlib.Path.home() / ".whisper" / "models" / "ggml-large-v3-turbo.bin"
 
-SEED = (
-    "Here's how I built this with AI. I use ChatGPT, Claude, Gemini, "
-    "Perplexity, and NotebookLM every day. For automation I use n8n, "
-    "Make.com, Zapier, Notion, Airtable, Replit, Lovable, Cursor, and Canva. "
-    "We'll cover prompts, APIs, agents, workflows, LLMs, and no-code tools, "
-    "step by step. Comment below and I'll send you the full breakdown."
-)
+# Fallback only. Pass --project to seed with your own niche's proper nouns;
+# a generic seed fixes the casing but will still mangle names it has never
+# heard, which is half the point of seeding at all.
+SEED = ("Here's what I want to show you today. I'll explain exactly how it "
+        "works, step by step, and why it matters. Comment below and I'll send "
+        "you the full breakdown.")
 
 
 def stamp(ms):
@@ -31,11 +33,11 @@ def stamp(ms):
     return f"{s // 60:02d}:{s % 60:02d}"
 
 
-def transcribe(wav, outbase, threads):
+def transcribe(wav, outbase, threads, seed):
     subprocess.run([
         "whisper-cli", "-m", str(MODEL), "-f", str(wav),
         "-l", "en", "-t", str(threads), "-oj", "-of", str(outbase),
-        "--prompt", SEED, "-np",
+        "--prompt", seed, "-np",
     ], check=True, capture_output=True)
 
 
@@ -52,10 +54,14 @@ def to_text(js, meta):
     return "\n".join(lines)
 
 
-def main(handle, threads):
+def main(handle, threads, project):
     d = ROOT / "data" / handle
     ranked = json.loads((d / "ranked.json").read_text())
     meta = {r["code"]: r for r in ranked["study_set"]}
+    seed = SEED
+    if project:
+        seed = P.seed_prompt(P.load(project))
+    print(f"  seed: {seed[:78]}…", file=sys.stderr)
     tdir = d / "transcripts"
     tdir.mkdir(parents=True, exist_ok=True)
     ok = skip = fail = 0
@@ -69,7 +75,7 @@ def main(handle, threads):
             continue
         t0 = time.time()
         try:
-            transcribe(wav, tdir / code, threads)
+            transcribe(wav, tdir / code, threads, seed)
             js = json.loads((tdir / f"{code}.json").read_text())
             txt.write_text(to_text(js, m))
             words = sum(len(s.get("text", "").split()) for s in js.get("transcription", []))
@@ -86,5 +92,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("handle")
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--project", help="seed whisper with this project's niche vocabulary")
     a = ap.parse_args()
-    main(a.handle.lstrip("@"), a.threads)
+    main(a.handle.lstrip("@"), a.threads, a.project)

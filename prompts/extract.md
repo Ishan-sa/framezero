@@ -8,6 +8,16 @@ It produces the skill files described in `prompts/emit.md`.
 You are analysing one creator's short-form video catalogue to extract a
 *reusable writing method*, not to summarise their content.
 
+**Read `data/_projects/<project>/<mode>.md` FIRST if it exists.** It states
+which findings replicated across creators and which are one creator's habit,
+computed mechanically. A finding marked DEAD or CONTESTED there must not
+appear in your output as advice, however good it looks in the transcripts. A
+finding marked SINGLE may appear, labelled as that creator's habit and a bet.
+
+Then read `data/<handle>/report.md` — the countable features, already
+measured. Start from those numbers rather than from impressions; you will
+find patterns in transcripts whether or not they are there.
+
 You have `corpus.md`: a full ranked table of their reels, plus timestamped
 transcripts for a WINNERS cohort and a CONTROLS cohort. Winners beat the
 creator's own contemporaneous median. Controls fell below it. Both cohorts
@@ -33,17 +43,17 @@ direction.
 
 ### 1. Content modes
 
-Classify every transcribed reel into one of these modes. A reel gets exactly
-one primary mode.
+**The modes come from the project file, not from this prompt.** Read
+`projects/<name>.json` — whoever set it up declared which modes they care
+about and which creators they study for each. Common ones are informational,
+teaching, tech-demo, funny, personal, but a niche may want entirely different
+ones and you must use theirs.
 
-- **informational** — conveys news, findings, or a landscape. The viewer
-  leaves knowing something they didn't. No action required of them.
-- **teaching** — walks the viewer through doing a thing themselves. Steps,
-  order, prerequisites. The viewer leaves able to do something.
-- **tech-demo** — narrates something happening on a screen. The build, the
-  tool, the result. Structure is driven by what the screen shows.
-- **personal** — story, opinion, or positioning. Included so it doesn't
-  contaminate the other three.
+Each creator was added under the mode they are studied FOR. Treat that as the
+starting assumption, then check it: creators post outside their signature
+mode, and a reel that does not belong should be flagged rather than forced
+into the cohort. Add a **personal** or **off-mode** bucket if you need
+somewhere to put them, so they do not contaminate the analysis.
 
 Give the count and the median outlier score per mode. If one mode
 systematically outperforms, say so — that is a strategic finding, not a

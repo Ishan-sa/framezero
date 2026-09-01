@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""reelmine — reverse-engineer what works on a niche's Instagram Reels.
+
+  ./reelmine new  <project> --niche "..." --mode informational=a,b --mode funny=c
+  ./reelmine run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
+  ./reelmine show <project>
+
+`run` is safe to repeat: every stage skips work already on disk.
+"""
+import subprocess, sys, pathlib, argparse
+
+ROOT = pathlib.Path(__file__).resolve().parent
+BIN = ROOT / "bin"
+sys.path.insert(0, str(BIN))
+import project as P
+
+
+def sh(script, *args):
+    cmd = [sys.executable, str(BIN / script), *[str(a) for a in args]]
+    r = subprocess.run(cmd)
+    return r.returncode == 0
+
+
+def head(msg):
+    print(f"\n\033[1m{msg}\033[0m", file=sys.stderr, flush=True)
+
+
+def run(a):
+    cfg = P.load(a.project)
+    handles = P.creators(cfg)
+    if a.mode:
+        handles = [h for h in handles if a.mode in P.modes_for(cfg, h)]
+    if a.only:
+        handles = [h for h in handles if h == a.only.lstrip("@")]
+    if not handles:
+        sys.exit("no creators match")
+
+    for h in handles:
+        modes = ", ".join(P.modes_for(cfg, h)) or "unassigned"
+        head(f"@{h}  [{modes}]")
+
+        if not (ROOT / "data" / h / "index.json").exists():
+            if not sh("scrape.py", h):
+                print(f"  scrape failed for @{h} — skipping", file=sys.stderr)
+                continue
+        else:
+            print("  index.json present — skipping scrape "
+                  "(delete it to re-pull)", file=sys.stderr)
+
+        rank = ["rank.py", h, "--top", a.top, "--bottom", a.bottom,
+                "--window", cfg.get("baseline_window_days", 90)]
+        if cfg.get("since"):
+            rank += ["--since", cfg["since"]]
+        sh(*rank)
+        sh("fetch.py", h)
+        sh("listen.py", h, "--project", a.project)
+        sh("corpus.py", h)
+        sh("report.py", h, "--project", a.project)
+
+    # The niche lexicon is derived from scraped captions, so it can only be
+    # built once there is data. Refresh it before the cross-creator pass.
+    head("niche lexicon")
+    sh("project.py", "lexicon", a.project)
+
+    for mode in ([a.mode] if a.mode else list(cfg["modes"])):
+        head(f"cross-creator: {mode}")
+        sh("aggregate.py", a.project, mode)
+
+    print(f"""
+Done. Hand these to your agent:
+
+  data/_projects/{a.project}/<mode>.md   which findings REPLICATE (read first)
+  data/<handle>/report.md                per-creator countable deltas
+  data/<handle>/corpus.md                the transcripts themselves
+  prompts/extract.md, prompts/emit.md    how to turn that into skills
+""", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    n = sub.add_parser("new", help="create a project")
+    n.add_argument("name"); n.add_argument("--niche", required=True)
+    n.add_argument("--vocabulary"); n.add_argument("--mode", action="append")
+    n.add_argument("--since")
+
+    s = sub.add_parser("show", help="project status")
+    s.add_argument("name")
+
+    r = sub.add_parser("run", help="run the pipeline for a project")
+    r.add_argument("project")
+    r.add_argument("--mode", help="only creators studied for this mode")
+    r.add_argument("--only", help="only this handle")
+    r.add_argument("--top", type=int, default=15)
+    r.add_argument("--bottom", type=int, default=15)
+
+    a = ap.parse_args()
+    if a.cmd == "run":
+        run(a)
+    else:
+        args = ["project.py", a.cmd, a.name]
+        for flag in ("niche", "vocabulary", "since"):
+            if getattr(a, flag, None):
+                args += [f"--{flag}", getattr(a, flag)]
+        for m in (getattr(a, "mode", None) or []):
+            args += ["--mode", m]
+        sys.exit(0 if sh(*args) else 1)

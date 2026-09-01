@@ -70,6 +70,12 @@ was actually running at 0.818x, *below* the creator's median. Six reels had it
 studying an underperformer. **This is the entire argument for scraping the
 catalogue rather than eyeballing a handful.**
 
+`aggregate.py` is the stage that decides this for you. It pools every creator
+studied for a mode and marks each feature **REPLICATED** (same direction, real
+gap, two or more creators), **SINGLE** (one creator's habit — a bet),
+**CONTESTED** (creators disagree) or **DEAD**. Only REPLICATED findings belong
+in a skill as rules.
+
 **One finding did not replicate,** and the tool was only able to tell because
 it ran twice: interview framing (an off-camera voice asks, the creator
 answers) split 5-of-15 winners against 0-of-15 controls for one creator, and
@@ -85,19 +91,60 @@ law of the format. Anything measured on a single creator is a bet.
 
 ## Usage
 
+Describe your niche, the kinds of content you make, and whose work you want to
+learn each kind from:
+
 ```bash
-python3 bin/scrape.py  <handle>              # public post index + play counts
-python3 bin/rank.py    <handle>              # outlier scoring, pick study set
-python3 bin/fetch.py   <handle>              # download + extract 16kHz audio
-python3 bin/listen.py  <handle>              # local transcription
-python3 bin/corpus.py  <handle>              # assemble one markdown corpus
-python3 bin/report.py  <handle>              # mechanical winner/control deltas
+./reelmine new myproject \
+    --niche "AI, automation and workflow software" \
+    --vocabulary "ChatGPT,Claude,n8n,Make.com,Zapier,Cursor" \
+    --mode informational=creator_a,creator_b \
+    --mode tech-demo=creator_c \
+    --mode funny=creator_d,creator_e
+
+./reelmine run myproject
+./reelmine show myproject
 ```
 
-Or `./run.sh <handle>` for all six.
+**Modes are yours to name.** informational, teaching, tech-demo, funny,
+storytime, reviews — whatever divisions your niche actually has. Creators are
+mapped to the mode you study them *for*, and the same creator can appear under
+more than one. Pooling a comedy account with a tutorial account would compare
+two different crafts, so the pipeline keeps them apart and only compares
+like with like.
 
-Then hand `data/<handle>/report.md` and `data/<handle>/corpus.md` to your
-agent along with `prompts/extract.md`, and it writes the skills.
+`run` is safe to repeat — every stage skips work already on disk. Add
+`--mode funny` or `--only handle` to narrow it.
+
+The stages are also usable on their own:
+
+```bash
+python3 bin/scrape.py    <handle>                  # post index + play counts
+python3 bin/rank.py      <handle> [--since D]      # outlier scoring
+python3 bin/fetch.py     <handle>                  # download + 16kHz audio
+python3 bin/listen.py    <handle> --project P      # local transcription
+python3 bin/corpus.py    <handle>                  # one markdown corpus
+python3 bin/report.py    <handle> --project P      # countable deltas
+python3 bin/aggregate.py <project> <mode>          # what replicates
+```
+
+### Nothing is hardcoded to one niche
+
+Three things used to be, and all three now come from the project:
+
+- **The whisper seed.** whisper.cpp emits all-lowercase text without an
+  initial prompt, so reelmine seeds one — built from your niche's vocabulary,
+  which fixes the casing *and* stops it mangling names it has never heard.
+- **The famous-entity lexicon.** Derived from your own scraped captions:
+  proper nouns that recur broadly across the niche's biggest accounts. It
+  filters sentence-initial capitals, drops words that also appear lowercase,
+  and discards anything appearing in more than a third of posts — a term in
+  every caption is that niche's boilerplate, not a household name.
+- **The modes.** Yours to define.
+
+Then hand `data/_projects/<project>/<mode>.md` — which findings replicated —
+along with `data/<handle>/report.md`, `data/<handle>/corpus.md` and
+`prompts/extract.md` to your agent, and it writes the skills.
 
 `report.py` matters more than it looks. An agent reading transcripts will find
 patterns whether or not they are there, so the countable features get measured

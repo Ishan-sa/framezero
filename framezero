@@ -111,6 +111,8 @@ if __name__ == "__main__":
     k.add_argument("script")
     k.add_argument("--like", required=True,
                    help="handle, or comma-separated handles to pool")
+    k.add_argument("--wpm", type=float, default=210,
+                   help="your own speaking rate (time yourself: words/minutes)")
 
     r = sub.add_parser("run", help="run the pipeline for a project")
     r.add_argument("project")
@@ -128,7 +130,8 @@ if __name__ == "__main__":
             args += ["--project", a.project]
         sys.exit(0 if sh(*args) else 1)
     elif a.cmd == "check":
-        sys.exit(0 if sh("voice.py", "check", a.script, "--like", a.like) else 1)
+        sys.exit(0 if sh("voice.py", "check", a.script,
+                         "--like", a.like, "--wpm", a.wpm) else 1)
     else:
         args = ["project.py", a.cmd, a.name]
         for flag in ("niche", "vocabulary", "since"):

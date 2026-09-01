@@ -333,6 +333,17 @@ def cmd_profile(a):
     print(f"\nwrote data/{handle}/voice.md and voice.json", file=sys.stderr)
 
 
+def spoken_seconds(text, wpm):
+    """How long THIS person takes to say it.
+
+    The creators' own pace is theirs, not the writer's. Sizing a script to a
+    creator's words-per-minute hands someone a script that runs long the moment
+    they actually read it aloud -- which is the kind of error that only shows up
+    off-screen, after the writing is done.
+    """
+    return 60 * len(WORD.findall(text)) / wpm
+
+
 def cmd_check(a):
     handles = [h.lstrip("@") for h in a.like.split(",")]
     text = pathlib.Path(a.script).read_text()
@@ -353,7 +364,25 @@ def cmd_check(a):
     bands = {k: {"lo": min(x["lo"] for x in v), "hi": max(x["hi"] for x in v)}
              for k, v in pooled.items()}
 
+    # Runtime bands come from the creators' winners; pace comes from the writer.
+    durs = []
+    for h in handles:
+        r = ROOT / "data" / h / "ranked.json"
+        if r.exists():
+            durs += [x["duration"] for x in json.loads(r.read_text())["study_set"]
+                     if x.get("cohort") == COHORT and x.get("duration")]
+    secs = spoken_seconds(text, a.wpm)
+
     print(f"\nvoice check — {a.script}  vs  " + ", ".join("@" + h for h in handles))
+    if durs:
+        lo, hi = min(durs), max(durs)
+        verdict = ("ok" if lo <= secs <= hi else
+                   "LONG ↓ cut" if secs > hi else "SHORT ↑ add")
+        print(f"runtime at {a.wpm} wpm: {secs:.0f}s   "
+              f"their winners ran {lo:.0f}–{hi:.0f}s   {verdict}")
+        if secs > hi:
+            over = len(WORD.findall(text)) - int(hi * a.wpm / 60)
+            print(f"  ~{over} words over. Cut a whole beat, not adjectives.")
     print(f"{'dial':<26}{'script':>9}{'target':>16}  verdict")
     print("-" * 68)
     off = []
@@ -403,6 +432,10 @@ if __name__ == "__main__":
     c = sub.add_parser("check", help="score a draft against a creator's voice")
     c.add_argument("script")
     c.add_argument("--like", required=True, help="handle, or comma-separated handles")
+    c.add_argument("--wpm", type=float, default=210,
+                   help="YOUR speaking rate, not theirs. Time yourself reading "
+                        "a script aloud: words / minutes. Default 210 is the "
+                        "creators' median and is probably too fast for you.")
 
     a = ap.parse_args()
     (cmd_profile if a.cmd == "profile" else cmd_check)(a)

@@ -157,6 +157,33 @@ path. A 370-post profile takes about a minute.
 scrapes the current value out of Instagram's own JS bundle rather than failing.
 That is why this keeps working when the libraries above do not.
 
+## What comes out
+
+The agent writes skills into your own agent config — for Claude Code that is
+`~/.claude/skills/<name>/`, one directory per content mode:
+
+```
+informational-reel-script/   SKILL.md + swipe-file.md
+teaching-reel-script/        SKILL.md + swipe-file.md
+tech-demo-reel-script/       SKILL.md + swipe-file.md
+reel-voice-layers/           SKILL.md   (voice profiles, applied on request)
+```
+
+Split by **mode**, not by creator. A news reel, a how-to and a screen
+recording are three different crafts with different beat structures, and one
+skill that tries to cover all three writes mush. The sibling descriptions have
+to disambiguate each other explicitly or the agent picks between them at
+random.
+
+Structure and voice stay in separate files on purpose. The default is the
+studied *structure* in your own words; a creator's voice is applied only when
+you ask for it. Copying structure is learning a craft. Copying voice produces
+a knockoff of someone who already has the audience — and it stops working the
+moment you study a second creator, because two voices do not merge.
+
+Swipe files quote real transcripts, so they stay local and out of git along
+with everything else under `data/`.
+
 ## Scope and etiquette
 
 This reads **public** profile data while logged out, the same data any visitor

@@ -8,6 +8,7 @@
   <img alt="stdlib only" src="https://img.shields.io/badge/dependencies-stdlib%20only-28d9a4?style=for-the-badge">
   <img alt="no api keys" src="https://img.shields.io/badge/API%20keys-none-28d9a4?style=for-the-badge">
   <img alt="runs local" src="https://img.shields.io/badge/runs-100%25%20local-4f8cff?style=for-the-badge">
+  <img alt="mcp ready" src="https://img.shields.io/badge/MCP-ready-7c5cff?style=for-the-badge">
 </p>
 
 <h3>Find out what actually works on a creator's Reels — then write in their voice.</h3>
@@ -20,6 +21,7 @@ separates the winners from the flops, and hands your AI agent a skill that write
 
 <p>
   <b><a href="#-quickstart">Quickstart</a></b> ·
+  <b><a href="#-profile-any-creator-in-a-minute">Profile a creator</a></b> ·
   <b><a href="#-what-616-reels-actually-showed">The findings</a></b> ·
   <b><a href="#-sounding-like-them">Voice</a></b> ·
   <b><a href="AGENTS.md">For AI assistants</a></b> ·
@@ -84,6 +86,102 @@ fail and fix.
 </td>
 </tr>
 </table>
+
+---
+
+## 🔎 Profile any creator in a minute
+
+Before you spend an hour transcribing anyone, find out who they are.
+
+```bash
+./framezero profile <handle>
+```
+
+One scrape, no whisper, about sixty seconds. Writes `profile.md`, `profile.json`
+and `posts.csv` (opens straight in Excel or Sheets).
+
+<table>
+<tr><td width="50%" valign="top">
+
+**Identity** — name, bio, category, verified, follower and following counts, bio
+links, external URL
+
+**Reach** — median / mean / top-decile / best / worst plays, engagement as a
+share of plays, plays per follower
+
+**Trajectory** — median plays per quarter, drawn as bars
+
+</td><td width="50%" valign="top">
+
+**Monetisation** — disclosed paid partnerships, who sponsored them, recurring
+tagged accounts, and the caption CTA they actually run
+
+**Format habits** — reel duration spread, aspect ratio, original audio vs
+licensed music, post types, top hashtags
+
+**Neighbours** — Instagram's own related accounts. The cheapest possible answer
+to "who else should I study?"
+
+</td></tr>
+</table>
+
+And the section that decides whether to bother at all:
+
+```
+## Is there anything to learn here?
+
+**Yes — wide spread.** Their best reels run 3.5× their own median, so something
+separates them and it is worth transcribing to find out.
+
+- top decile: 484,420 (3.5× median)
+- median:     138,946
+- bottom decile: 53,647 (0.39× median)
+```
+
+If that multiple sits near 1, the account's winners are not doing anything
+different — they got luckier. The expensive pass would find nothing, and the
+dossier tells you so for the price of one scrape.
+
+> [!NOTE]
+> **Three things it will not pretend to know.** Instagram returns one follower
+> number, today — so the trajectory is median plays per quarter, a proxy, never
+> presented as follower growth. `paid_partnership` is the *disclosed* flag only;
+> sponsor tags and caption CTAs catch more, never all. And location appears only
+> where the creator tagged it, which is usually nowhere.
+
+---
+
+## 🤖 Made to be driven by an assistant
+
+Nobody is going to use this raw. They are going to point Claude, Cursor or Codex
+at it — so the tool ships for that.
+
+**An MCP server**, standard library, no install:
+
+```bash
+claude mcp add framezero -- python3 "$(pwd)/bin/mcp_server.py"
+```
+
+| tool | what it gives the assistant |
+|---|---|
+| `list_projects` | what already exists on disk |
+| `profile_creator` | the full dossier, scraping if needed |
+| `findings` | which features REPLICATED across creators |
+| `creator_report` | one creator's winner-vs-control deltas |
+| `voice_profile` | the 16 dials and signature phrases |
+| `check_script` | score a draft, before the user ever sees it |
+| `transcripts` | the corpus, by cohort |
+| `run_pipeline` | the slow full pass, flagged as slow |
+
+**Structured output everywhere.** Every stage writes markdown *and* JSON —
+`profile.json`, `voice.json`, `ranked.json`, `index.json` — plus `posts.csv` for
+a spreadsheet. Markdown for the human, JSON for the agent, same numbers.
+
+**[`AGENTS.md`](AGENTS.md)** is a full onboarding file: preflight, install per
+platform, what to ask the user, which outputs to read in which order, the
+mandatory draft-check loop, and the ground rules. `CLAUDE.md`, `GEMINI.md` and
+`.github/copilot-instructions.md` point at it, so every assistant lands in the
+same place.
 
 ---
 
@@ -169,6 +267,7 @@ Narrow it with `--mode funny`, `--only handle`, `--top 15 --bottom 15`.
 
 ```
 data/_projects/<project>/<mode>.md   ← START HERE — which findings REPLICATE
+data/<handle>/profile.md             ← who they are, what they post, how they earn
 data/<handle>/report.md              ← that creator's countable deltas (structure)
 data/<handle>/voice.md               ← how they SOUND — dials + signature phrases
 data/<handle>/corpus.md              ← the transcripts themselves (read LAST)
@@ -351,7 +450,8 @@ flowchart LR
   C --> D["listen.py<br/><small>whisper.cpp, seeded</small>"]
   D --> E["corpus.py<br/><small>one markdown</small>"]
   E --> F["report.py<br/><small>countable deltas</small>"]
-  F --> G["voice.py<br/><small>16 dials</small>"]
+  F --> P["profile.py<br/><small>account dossier</small>"]
+  P --> G["voice.py<br/><small>16 dials</small>"]
   G --> H["aggregate.py<br/><small>what replicates</small>"]
   H --> I(["your agent<br/><small>writes the skill</small>"])
 ```
@@ -366,6 +466,7 @@ python3 bin/fetch.py     <handle>                  # download + 16kHz audio
 python3 bin/listen.py    <handle> --project P      # local transcription
 python3 bin/corpus.py    <handle>                  # one markdown corpus
 python3 bin/report.py    <handle> --project P      # countable deltas
+python3 bin/profile.py   <handle>                  # account dossier + csv
 python3 bin/voice.py     profile <handle>          # voice fingerprint
 python3 bin/aggregate.py <project> <mode>          # what replicates
 ```

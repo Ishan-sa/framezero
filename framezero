@@ -3,6 +3,7 @@
 
   ./framezero new  <project> --niche "..." --mode informational=a,b --mode funny=c
   ./framezero run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
+  ./framezero profile <handle>               full dossier: who they are, what they post
   ./framezero voice <handle> [--project P]   derive a creator's voice fingerprint
   ./framezero check <script> --like <handle>  score a draft against that voice
   ./framezero show <project>
@@ -59,6 +60,9 @@ def run(a):
         sh("listen.py", h, "--project", a.project)
         sh("corpus.py", h)
         sh("report.py", h, "--project", a.project)
+        # Free: it reads the index that is already on disk and makes no
+        # requests of its own.
+        sh("profile.py", h)
 
     # The niche lexicon is derived from scraped captions, so it can only be
     # built once there is data. Refresh it before the cross-creator pass.
@@ -80,6 +84,7 @@ def run(a):
 Done. Hand these to your agent:
 
   data/_projects/{a.project}/<mode>.md   which findings REPLICATE (read first)
+  data/<handle>/profile.md               who the creator is, what they post, how they earn
   data/<handle>/report.md                per-creator countable deltas — structure
   data/<handle>/voice.md                 how that creator SOUNDS — dials + exemplars
   data/<handle>/corpus.md                the transcripts themselves
@@ -104,6 +109,12 @@ if __name__ == "__main__":
     s = sub.add_parser("show", help="project status")
     s.add_argument("name")
 
+    p = sub.add_parser("profile",
+                       help="full dossier for one creator — no transcription")
+    p.add_argument("handle")
+    p.add_argument("--refresh", action="store_true",
+                   help="re-pull the index even if one is already on disk")
+
     v = sub.add_parser("voice", help="derive a creator's voice fingerprint")
     v.add_argument("handle"); v.add_argument("--project")
 
@@ -124,6 +135,17 @@ if __name__ == "__main__":
     a = ap.parse_args()
     if a.cmd == "run":
         run(a)
+    elif a.cmd == "profile":
+        h = a.handle.lstrip("@")
+        idx = ROOT / "data" / h / "index.json"
+        if a.refresh and idx.exists():
+            idx.unlink()
+        # The dossier is the cheap door into this tool: one scrape, no whisper,
+        # about a minute. So it pulls the index itself rather than making the
+        # user run a separate stage first.
+        if not idx.exists() and not sh("scrape.py", h):
+            sys.exit(f"scrape failed for @{h}")
+        sys.exit(0 if sh("profile.py", h) else 1)
     elif a.cmd == "voice":
         args = ["voice.py", "profile", a.handle]
         if a.project:

@@ -101,6 +101,25 @@ class IG:
             "followers": u["edge_followed_by"]["count"],
             "following": u["edge_follow"]["count"],
             "post_count": u["edge_owner_to_timeline_media"]["count"],
+            # Everything below is free -- it rides on the same response. It is
+            # what profile.py needs to describe the account rather than just
+            # rank its reels.
+            "category": u.get("category_name"),
+            "business_category": u.get("business_category_name"),
+            "is_verified": u.get("is_verified"),
+            "is_professional": u.get("is_professional_account"),
+            "is_business": u.get("is_business_account"),
+            "external_url": u.get("external_url"),
+            "bio_links": [{"title": b.get("title"), "url": b.get("url")}
+                          for b in (u.get("bio_links") or []) if b.get("url")],
+            # Instagram's own "similar accounts". The cheapest answer to
+            # "who else should I be studying?" that exists.
+            "related_profiles": [
+                {"handle": e["node"].get("username"),
+                 "name": e["node"].get("full_name"),
+                 "verified": e["node"].get("is_verified")}
+                for e in (u.get("edge_related_profiles") or {}).get("edges", [])
+                if not e["node"].get("is_private")],
         }
 
 
@@ -138,9 +157,36 @@ def duration_of(n):
     return float(m.group(1)) if m else None
 
 
+def handles_in(tags):
+    """usertags / sponsor_tags / coauthors all wrap the account differently."""
+    out = []
+    for t in (tags or []):
+        if isinstance(t, str):
+            out.append(t.lstrip("@")); continue
+        u = t.get("user") or t.get("sponsor") or t
+        h = u.get("username") if isinstance(u, dict) else None
+        if h:
+            out.append(h)
+    return out
+
+
+def audio_of(n):
+    """original_sounds vs a licensed track is a real format choice, and it is
+    the difference between a reel that can be reused and one that cannot."""
+    cm = n.get("clips_metadata") or {}
+    mi = (cm.get("music_info") or {}).get("music_asset_info") or {}
+    return {
+        "type": cm.get("audio_type"),
+        "track": mi.get("title"),
+        "artist": mi.get("display_artist"),
+    }
+
+
 def norm_post(n):
     vv = n.get("video_versions") or []
     cap = n.get("caption") or {}
+    ut = n.get("usertags") or {}
+    loc = n.get("location") or {}
     return {
         "code": n.get("code"),
         "pk": str(n.get("pk") or ""),
@@ -155,6 +201,17 @@ def norm_post(n):
         "caption": cap.get("text", "") or "",
         "video_url": vv[0]["url"] if vv else None,
         "url": f"https://www.instagram.com/p/{n.get('code')}/",
+        # Kept for profile.py. All of it rides on the response we already made.
+        "title": n.get("title"),
+        "paid_partnership": bool(n.get("is_paid_partnership")),
+        "sponsors": handles_in(n.get("sponsor_tags")),
+        "coauthors": handles_in(n.get("coauthor_producers")
+                                or n.get("invited_coauthor_producers")),
+        "tagged": handles_in((ut.get("in") if isinstance(ut, dict) else ut) or []),
+        "location": loc.get("name") if isinstance(loc, dict) else None,
+        "audio": audio_of(n),
+        "width": n.get("original_width"),
+        "height": n.get("original_height"),
     }
 
 

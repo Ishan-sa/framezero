@@ -9,6 +9,29 @@ them to figure anything out.
 
 ---
 
+## 0. Fastest route: connect it as an MCP server
+
+If your client speaks MCP, do this first — it turns the whole pipeline into
+typed tools and you can skip the shell entirely.
+
+```bash
+claude mcp add framezero -- python3 "$(pwd)/bin/mcp_server.py"
+```
+
+Any other client, in its JSON config:
+
+```json
+{"mcpServers": {"framezero": {"command": "python3",
+                              "args": ["/abs/path/to/bin/mcp_server.py"]}}}
+```
+
+Eight tools: `list_projects`, `profile_creator`, `findings`, `creator_report`,
+`voice_profile`, `check_script`, `transcripts`, `run_pipeline`. Stdlib only, no
+install. The rest of this file still applies — it is the reasoning behind the
+tools, and sections 2, 7 and 8 in particular are not encoded in the schemas.
+
+---
+
 ## 1. What this repository is
 
 **framezero** studies a public Instagram creator's Reels and turns what it finds
@@ -16,10 +39,11 @@ into a reusable script-writing skill for *you*, the assistant.
 
 It answers two separate questions, and keeping them separate is the whole design:
 
-| question | stage | output |
-|---|---|---|
-| What are their winning reels **about**, structurally? | `report.py` → `aggregate.py` | countable feature deltas, marked REPLICATED / SINGLE / CONTESTED / DEAD |
-| What does that creator **sound like**? | `voice.py` | 16 numeric dials with target bands, plus signature phrases |
+| question | stage | output | needs transcription? |
+|---|---|---|---|
+| **Who is this creator**, and are they worth studying? | `profile.py` | dossier: reach, trajectory, brand deals, CTAs, neighbours | no — ~1 min |
+| What are their winning reels **about**, structurally? | `report.py` → `aggregate.py` | countable feature deltas, marked REPLICATED / SINGLE / CONTESTED / DEAD | yes |
+| What does that creator **sound like**? | `voice.py` | 16 numeric dials with target bands, plus signature phrases | yes |
 
 You are not an optional add-on to this pipeline. **You are the last stage.** The
 Python writes measurements; you read them and write the skill. `prompts/extract.md`
@@ -140,7 +164,41 @@ apart. Same creator can appear under more than one mode.
 
 ---
 
-## 5. The run
+## 5. Start cheap: profile before you commit
+
+A full run costs 20–60 minutes, almost all of it transcription. A dossier costs
+one scrape:
+
+```bash
+./framezero profile <handle>
+```
+
+Writes `data/<handle>/profile.md`, `profile.json`, and `posts.csv` — identity,
+bio, followers, median/best/worst plays, engagement, growth trajectory by
+quarter, posting cadence, reel durations, hashtags, audio type, disclosed brand
+partnerships and who sponsored them, the caption CTA they actually run, and
+Instagram's own list of related accounts.
+
+**Use it as a gate.** The dossier includes a section headed *"Is there anything
+to learn here?"* — the ratio of the creator's top decile to their own median. If
+that ratio is near 1, their winners are not doing anything different and the
+expensive pass will produce nothing. Tell the user before spending the hour.
+
+It is also the answer to "who else should I study": `neighbours` in
+`profile.json` is Instagram's own related-accounts list for that handle.
+
+Three limits to state plainly rather than paper over:
+
+- **No follower history.** Instagram returns one number, today. The trajectory
+  table is median plays per quarter, which is a proxy and moves with the
+  algorithm as well as the audience. Never present it as follower growth.
+- **Disclosed sponsorship only.** `paid_partnership` is the platform flag.
+  Sponsor tags, recurring @mentions and caption CTAs catch more, never all.
+- **Location only where tagged**, which is usually nowhere.
+
+---
+
+## 6. The run
 
 ```bash
 ./framezero new myproject \
@@ -168,7 +226,8 @@ flowchart LR
   C --> D[listen.py<br/><sub>whisper.cpp</sub>]
   D --> E[corpus.py<br/><sub>one markdown</sub>]
   E --> F[report.py<br/><sub>countable deltas</sub>]
-  F --> G[voice.py<br/><sub>16 dials</sub>]
+  F --> P[profile.py<br/><sub>account dossier</sub>]
+  P --> G[voice.py<br/><sub>16 dials</sub>]
   G --> H[aggregate.py<br/><sub>what replicates</sub>]
   H --> I([you<br/><sub>write the skill</sub>])
 ```
@@ -184,10 +243,11 @@ Two ordering constraints you must not "optimise" away:
 
 ---
 
-## 6. Read the outputs in this order
+## 7. Read the outputs in this order
 
 ```
 data/_projects/<project>/<mode>.md   ← START HERE. What replicated across creators.
+data/<handle>/profile.md             ← who they are, what they post, how they earn
 data/<handle>/report.md              ← that creator's countable deltas
 data/<handle>/voice.md               ← how they sound: dials + signature phrases
 data/<handle>/corpus.md              ← the transcripts themselves (read LAST)
@@ -202,7 +262,7 @@ who already has the audience.
 
 ---
 
-## 7. Closing the loop on every draft
+## 8. Closing the loop on every draft
 
 This is the part assistants skip, and skipping it is why generated scripts read
 like an essay in the shape of a reel. **Every draft gets checked before you show
@@ -238,7 +298,7 @@ Rules for using it:
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | symptom | cause | fix |
 |---|---|---|
@@ -248,11 +308,13 @@ Rules for using it:
 | Whisper writes "N8 N", "make dot com", "cloud" | niche vocabulary missing from the project | Add the terms to `vocabulary`, delete the bad transcripts, re-run `listen.py`. |
 | Every finding says SINGLE | only one creator in that mode | Add a second creator. This is the tool working correctly. |
 | `voice.py profile` refuses | fewer than 3 transcribed winners | Raise `--top`, or the creator does not have enough catalogue. |
+| `profile.md` has no brand deals, audio or tags | index predates those fields | `./framezero profile <handle> --refresh` |
+| Dossier says the spread is flat | the account genuinely has no winner/control delta | Say so before spending an hour transcribing it. |
 | Ranking looks wrong for a creator who pivoted | old reels poisoning the baseline | Give that creator their own cutoff: `"creators": {"handle": {"since": "2025-06-01"}}` |
 
 ---
 
-## 9. Repository map
+## 10. Repository map
 
 ```
 framezero              CLI entry point — new / run / show / voice / check
@@ -262,7 +324,9 @@ bin/fetch.py           mp4 download, ffmpeg to 16kHz mono wav
 bin/listen.py          whisper.cpp, seeded with the niche vocabulary
 bin/corpus.py          ranking + transcripts into one markdown file
 bin/report.py          countable winner/control deltas, per creator
+bin/profile.py         whole-account dossier: md + json + csv, no transcription
 bin/voice.py           16 voice dials, signature phrases, draft scoring
+bin/mcp_server.py      the same pipeline as MCP tools, over stdio
 bin/aggregate.py       pools creators, assigns replication verdicts
 bin/project.py         project config, niche lexicon derivation
 prompts/extract.md     how to read the outputs
@@ -272,13 +336,13 @@ projects/example.json  placeholder config — copy this shape
 
 ---
 
-## 10. Definition of done
+## 11. Definition of done
 
 Before you tell the user you are finished:
 
 - [ ] `./framezero show <project>` lists every creator with a transcript count > 0
 - [ ] `data/_projects/<project>/<mode>.md` exists for every mode and has verdicts
-- [ ] every creator has a `voice.md` with 16 dials
+- [ ] every creator has a `profile.md` and a `voice.md` with 16 dials
 - [ ] `out/skills/` has one skill per mode, plus a voice layer
 - [ ] every rule in a skill traces to a REPLICATED finding; bets are labelled as bets
 - [ ] any sample script you wrote passes `./framezero check` at the user's own wpm

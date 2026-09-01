@@ -1,0 +1,55 @@
+{
+  "name": "example",
+  "niche": {
+    "label": "AI, automation and workflow software",
+    "vocabulary": [
+      "ChatGPT",
+      "Claude",
+      "Claude Code",
+      "Gemini",
+      "Perplexity",
+      "n8n",
+      "Make.com",
+      "Zapier",
+      "Cursor",
+      "Replit",
+      "Lovable",
+      "Notion",
+      "Airtable",
+      "OpenAI",
+      "Anthropic",
+      "Google",
+      "DeepSeek",
+      "Sora",
+      "Grok",
+      "Canva"
+    ],
+    "seed_prompt": null,
+    "lexicon": []
+  },
+  "modes": {
+    "informational": {
+      "creators": [
+        "some_handle",
+        "another_handle"
+      ]
+    },
+    "tech-demo": {
+      "creators": [
+        "another_handle"
+      ]
+    },
+    "funny": {
+      "creators": [
+        "a_third_handle"
+      ]
+    }
+  },
+  "baseline_window_days": 90,
+  "since": null,
+  "creators": {
+    "some_handle": {
+      "since": "2025-06-01"
+    }
+  }
+}

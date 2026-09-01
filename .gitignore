@@ -11,3 +11,7 @@ out/
 __pycache__/
 *.pyc
 .venv/
+
+# Project files name real creators. Only the placeholder example is tracked.
+projects/*.json
+!projects/example.json

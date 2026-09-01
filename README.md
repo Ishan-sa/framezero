@@ -1,4 +1,4 @@
-# reelmine
+# framezero
 
 Reverse-engineer what actually works on a creator's Instagram Reels, and turn it
 into a reusable AI skill that writes scripts in that structure.
@@ -18,7 +18,7 @@ The ones that claim to do both and "write scripts in your competitor's voice"
 are, on inspection, generic models trained on a generic viral corpus — the
 output is not grounded in that specific creator's transcripts at all.
 
-reelmine does the grounding, and does three things those tools don't:
+framezero does the grounding, and does three things those tools don't:
 
 **Outlier score, not raw views.** Every reel is scored against the median of its
 own neighbours in a ±90 day window. A 100K-view reel from when the creator had
@@ -31,7 +31,7 @@ videos do, not what the winning ones do *differently*. The delta is the whole
 point. No SaaS does this because it doubles their transcription bill.
 
 **A seeded transcript.** whisper.cpp emits all-lowercase, unpunctuated text
-unless you give it an initial prompt. reelmine seeds one, and loads that seed
+unless you give it an initial prompt. framezero seeds one, and loads that seed
 with the creator's own domain vocabulary — so it stops writing "N8 N",
 "make dot com", and "cloud" when it means Claude. One flag, two wins.
 
@@ -95,15 +95,15 @@ Describe your niche, the kinds of content you make, and whose work you want to
 learn each kind from:
 
 ```bash
-./reelmine new myproject \
+./framezero new myproject \
     --niche "AI, automation and workflow software" \
     --vocabulary "ChatGPT,Claude,n8n,Make.com,Zapier,Cursor" \
     --mode informational=creator_a,creator_b \
     --mode tech-demo=creator_c \
     --mode funny=creator_d,creator_e
 
-./reelmine run myproject
-./reelmine show myproject
+./framezero run myproject
+./framezero show myproject
 ```
 
 **Modes are yours to name.** informational, teaching, tech-demo, funny,
@@ -140,7 +140,7 @@ python3 bin/aggregate.py <project> <mode>          # what replicates
 Three things used to be, and all three now come from the project:
 
 - **The whisper seed.** whisper.cpp emits all-lowercase text without an
-  initial prompt, so reelmine seeds one — built from your niche's vocabulary,
+  initial prompt, so framezero seeds one — built from your niche's vocabulary,
   which fixes the casing *and* stops it mangling names it has never heard.
 - **The famous-entity lexicon.** Derived from your own scraped captions:
   proper nouns that recur broadly across the niche's biggest accounts. It
@@ -195,7 +195,7 @@ What works anonymously is two GraphQL calls joined on `code`:
 | `PolarisProfilePostsQuery` | captions, timestamps, likes, comments, `video_versions[]` CDN URLs, DASH manifest | `view_count` is always null logged-out |
 | clips user connection | real `play_count` per reel | no video URLs, no timestamps |
 
-Duration is not returned at all any more, so reelmine parses
+Duration is not returned at all any more, so framezero parses
 `mediaPresentationDuration` out of the DASH manifest that ships with each post.
 Same number, no extra request.
 
@@ -208,7 +208,7 @@ rejected with a 403. A browser User-Agent, `X-IG-App-ID`, `X-ASBD-ID`,
 Two seconds between pages is plenty; there is no meaningful rate limit on this
 path. A 370-post profile takes about a minute.
 
-**`doc_id`s rotate every two to four weeks.** When one stops working, reelmine
+**`doc_id`s rotate every two to four weeks.** When one stops working, framezero
 scrapes the current value out of Instagram's own JS bundle rather than failing.
 That is why this keeps working when the libraries above do not.
 

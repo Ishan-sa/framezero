@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Projects: a niche, a set of content modes, and creators studied per mode.
 
-reelmine started hardcoded to one person's niche. Three things were baked in
+framezero started hardcoded to one person's niche. Three things were baked in
 and all three are now per-project:
 
   * the whisper seed vocabulary (it was AI tool names)

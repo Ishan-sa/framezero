@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""reelmine — reverse-engineer what works on a niche's Instagram Reels.
+"""framezero — reverse-engineer what works on a niche's Instagram Reels.
 
-  ./reelmine new  <project> --niche "..." --mode informational=a,b --mode funny=c
-  ./reelmine run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
-  ./reelmine show <project>
+  ./framezero new  <project> --niche "..." --mode informational=a,b --mode funny=c
+  ./framezero run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
+  ./framezero show <project>
 
 `run` is safe to repeat: every stage skips work already on disk.
 """

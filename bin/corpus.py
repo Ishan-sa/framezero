@@ -2,7 +2,7 @@
 """Assemble everything into one markdown corpus for the analysis step.
 
 Deliberately not an API call. The analysis wants a long-context model
-reading every transcript at once alongside the numbers, and reelmine is
+reading every transcript at once alongside the numbers, and framezero is
 meant to run inside an agent you already pay for. So this stage produces
 the input and hands it over.
 

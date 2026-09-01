@@ -44,6 +44,8 @@ def main(handle):
     allr = ranked["all_ranked"]
 
     durs = [r["duration"] for r in allr if r.get("duration")]
+    dur_txt = (f"Median duration: {statistics.median(durs):.0f}s. "
+               if durs else "Duration: unavailable. ")
     L = []
     L.append(f"# Reel corpus: @{handle}\n")
     L.append(f"**{prof.get('full_name','')}** — {prof.get('followers',0):,} followers, "
@@ -51,7 +53,7 @@ def main(handle):
     if prof.get("biography"):
         L.append("> " + prof["biography"].replace("\n", "\n> ") + "\n")
     L.append(f"Median reel: **{ranked['median_plays']:,.0f} plays**. "
-             f"Median duration: {statistics.median(durs):.0f}s. "
+             + dur_txt +
              f"Baseline window: ±{ranked['window_days']} days.\n")
     L.append("Every reel is scored against the median of its own neighbours in "
              "that window, not against raw views, so follower growth over time "

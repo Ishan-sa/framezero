@@ -1,153 +1,265 @@
 #!/usr/bin/env python3
-"""Pull a public Instagram profile's post index (incl. reel play counts).
+"""Pull a public Instagram profile's full post index, logged out.
 
-Logged-out public web API. No login, no cookies, no paid actor.
-Instagram throttles this endpoint hard per-IP, so we go slow, back off on
-401/429, save after every page, and resume from whatever we already have.
+Instagram gated the old REST timeline (/api/v1/feed/user/) for logged-out
+clients. It answers 401 with {"message":"Please wait a few minutes...",
+"require_login":true,"igweb_rollout":true} on the very first request from a
+cold IP. That string is a lie -- it is not a throttle, it is a retired
+surface, and no amount of backing off will clear it. Do not go back there.
+
+What does work anonymously, today, is two GraphQL calls joined on `code`:
+
+  A. PolarisProfilePostsQuery  -> the timeline: captions, timestamps, likes,
+     comments, and video_versions[] with direct CDN URLs. `view_count` is in
+     the schema but always null when logged out, which is why we need B.
+  B. clips user connection     -> real play_count per reel, but no video URLs
+     and no taken_at. Hence the join.
+
+The only header that matters is the CSRF pair: fetch the profile page first,
+keep the csrftoken cookie, echo it back as X-CSRFToken. Cookie alone is
+rejected with a 403 HTML body. Browser User-Agent, X-IG-App-ID, X-ASBD-ID,
+Referer, Sec-Fetch-* are all cargo cult on this endpoint -- though X-IG-App-ID
+IS required for the one REST call we still make, to resolve the user id.
+
+doc_ids rotate every two to four weeks, so a hardcoded pair will eventually
+rot. When one stops working we scrape the current value out of Instagram's own
+JS bundle rather than failing.
 
 Writes data/<handle>/index.json
 """
-import json, sys, time, random, urllib.request, urllib.error, pathlib, argparse
+import json, sys, time, random, re, urllib.request, urllib.parse, urllib.error
+import http.cookiejar, pathlib, argparse
 
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
 APP_ID = "936619743392459"
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+GRAPHQL = "https://www.instagram.com/graphql/query"
+
+# Known-good as of 2026-08-31. Auto-refreshed from the JS bundle if they rot.
+DOC_POSTS = "28534843459473863"   # PolarisProfilePostsQuery
+DOC_CLIPS = "27234427476213202"   # clips user connection v2
+
+RELAY_PROVIDERS = {
+    "__relay_internal__pv__PolarisMultiCaptionCarouselEnabledrelayprovider": False,
+    "__relay_internal__pv__PolarisShortDramaEnabledrelayprovider": False,
+    "__relay_internal__pv__PolarisReelsRecoDebugOverlayEnabledrelayprovider": False,
+}
 
 
-def get(url, handle):
-    req = urllib.request.Request(url, headers={
-        "User-Agent": UA,
-        "X-IG-App-ID": APP_ID,
-        "Referer": f"https://www.instagram.com/{handle}/",
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-    })
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)
+class IG:
+    """A warmed guest session. Holds the cookie jar and the csrf token."""
+
+    def __init__(self):
+        self.jar = http.cookiejar.CookieJar()
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.jar))
+        self.csrf = None
+
+    def _open(self, req, timeout=30):
+        return self.opener.open(req, timeout=timeout)
+
+    def warm(self, handle):
+        """GET the profile page so Instagram hands us a csrftoken."""
+        req = urllib.request.Request(f"https://www.instagram.com/{handle}/",
+                                     headers={"User-Agent": UA})
+        with self._open(req) as r:
+            html = r.read().decode("utf-8", "replace")
+        for c in self.jar:
+            if c.name == "csrftoken":
+                self.csrf = c.value
+        if not self.csrf:
+            raise RuntimeError("no csrftoken from profile page — cannot proceed")
+        return html
+
+    def graphql(self, doc_id, variables):
+        body = urllib.parse.urlencode({
+            "doc_id": doc_id,
+            "variables": json.dumps(variables),
+            "server_timestamps": "true",
+        }).encode()
+        req = urllib.request.Request(GRAPHQL, data=body, headers={
+            "User-Agent": UA,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": self.csrf,
+        })
+        with self._open(req) as r:
+            return json.load(r)
+
+    def user_id(self, handle):
+        """The one call that still needs X-IG-App-ID."""
+        req = urllib.request.Request(
+            "https://www.instagram.com/api/v1/users/web_profile_info/"
+            f"?username={handle}",
+            headers={"User-Agent": UA, "X-IG-App-ID": APP_ID})
+        with self._open(req) as r:
+            u = json.load(r)["data"]["user"]
+        return u["id"], {
+            "handle": handle,
+            "full_name": u.get("full_name"),
+            "biography": u.get("biography"),
+            "followers": u["edge_followed_by"]["count"],
+            "following": u["edge_follow"]["count"],
+            "post_count": u["edge_owner_to_timeline_media"]["count"],
+        }
 
 
-def get_retry(url, handle, tries=12, base=45, cap=1800):
-    """Back off through a throttle. IG's 401 here means 'slow down', not 'no'."""
-    for n in range(tries):
+def discover_doc_ids(ig, html):
+    """doc_ids rotate. Pull the live ones out of Instagram's own JS modules."""
+    found = {}
+    urls = sorted(set(re.findall(
+        r'https://static\.cdninstagram\.com/rsrc\.php/[^"\\]+\.js', html)))
+    pat = re.compile(r'__d\("(Polaris\w+Query)_instagramRelayOperation".{0,160}?'
+                     r'exports\s*=\s*"(\d+)"', re.S)
+    for u in urls[:60]:
         try:
-            return get(url, handle)
-        except urllib.error.HTTPError as e:
-            if e.code not in (401, 429, 403, 500, 502, 503):
-                raise
-            wait = min(base * (2 ** n), cap) + random.uniform(0, 20)
-            print(f"    HTTP {e.code} — backing off {wait:.0f}s "
-                  f"(attempt {n+1}/{tries})", file=sys.stderr, flush=True)
-            time.sleep(wait)
-        except (urllib.error.URLError, TimeoutError) as e:
-            wait = min(base * (2 ** n), cap)
-            print(f"    {e} — retry in {wait:.0f}s", file=sys.stderr, flush=True)
-            time.sleep(wait)
-    return None
+            req = urllib.request.Request(u.replace("\\/", "/"),
+                                         headers={"User-Agent": UA})
+            with ig._open(req, timeout=20) as r:
+                js = r.read().decode("utf-8", "replace")
+        except Exception:
+            continue
+        for name, doc in pat.findall(js):
+            found.setdefault(name, doc)
+        if "PolarisProfilePostsQuery" in found:
+            break
+    return found
 
 
-def profile_of(handle):
-    d = get_retry(f"https://www.instagram.com/api/v1/users/web_profile_info/"
-                  f"?username={handle}", handle)
-    u = d["data"]["user"]
-    return u["id"], {
-        "handle": handle,
-        "full_name": u.get("full_name"),
-        "biography": u.get("biography"),
-        "followers": u["edge_followed_by"]["count"],
-        "following": u["edge_follow"]["count"],
-        "post_count": u["edge_owner_to_timeline_media"]["count"],
-    }
+DUR_RE = re.compile(r'mediaPresentationDuration="PT([\d.]+)S"')
 
 
-def normalize(item):
-    vv = item.get("video_versions") or []
-    cap = item.get("caption") or {}
+def duration_of(n):
+    """The GraphQL timeline drops video_duration, but the DASH manifest it
+    ships carries mediaPresentationDuration. Same number, no extra request."""
+    if n.get("video_duration"):
+        return n["video_duration"]
+    m = DUR_RE.search(n.get("video_dash_manifest") or "")
+    return float(m.group(1)) if m else None
+
+
+def norm_post(n):
+    vv = n.get("video_versions") or []
+    cap = n.get("caption") or {}
     return {
-        "code": item.get("code"),
-        "pk": str(item.get("pk") or str(item.get("id", "")).split("_")[0]),
-        "media_type": item.get("media_type"),
-        "product_type": item.get("product_type"),
-        "is_reel": item.get("product_type") == "clips",
-        "taken_at": item.get("taken_at"),
-        "play_count": item.get("play_count") or item.get("ig_play_count"),
-        "like_count": item.get("like_count"),
-        "comment_count": item.get("comment_count"),
-        "duration": item.get("video_duration"),
+        "code": n.get("code"),
+        "pk": str(n.get("pk") or ""),
+        "media_type": n.get("media_type"),
+        "product_type": n.get("product_type"),
+        "is_reel": n.get("product_type") == "clips",
+        "taken_at": n.get("taken_at"),
+        "play_count": None,                 # filled from the clips pass
+        "like_count": n.get("like_count"),
+        "comment_count": n.get("comment_count"),
+        "duration": duration_of(n),
         "caption": cap.get("text", "") or "",
         "video_url": vv[0]["url"] if vv else None,
-        "url": f"https://www.instagram.com/p/{item.get('code')}/",
+        "url": f"https://www.instagram.com/p/{n.get('code')}/",
     }
 
 
-def save(path, profile, posts, cursor, done):
-    seen, uniq = set(), []
-    for p in posts:                       # de-dupe, keep first occurrence
-        if p["code"] and p["code"] not in seen:
-            seen.add(p["code"])
-            uniq.append(p)
-    uniq.sort(key=lambda p: p.get("taken_at") or 0, reverse=True)
-    path.write_text(json.dumps({
-        "profile": profile, "scraped_at": int(time.time()),
-        "cursor": cursor, "complete": done, "posts": uniq,
-    }, indent=2, ensure_ascii=False))
-    return uniq
+def page_timeline(ig, handle, doc_id, delay, max_pages):
+    posts, after, page = [], None, 0
+    while page < max_pages:
+        v = {"after": after, "before": None,
+             "data": {"count": 33, "include_reel_media_seen_timestamp": True,
+                      "include_relationship_info": True,
+                      "latest_besties_reel_media": True,
+                      "latest_reel_media": True},
+             "first": 33, "last": None, "username": handle, **RELAY_PROVIDERS}
+        d = ig.graphql(doc_id, v)
+        conn = ((d.get("data") or {})
+                .get("xdt_api__v1__feed__user_timeline_graphql_connection"))
+        if not conn:
+            raise RuntimeError(f"timeline: unexpected shape {str(d)[:200]}")
+        posts += [norm_post(e["node"]) for e in conn.get("edges", [])]
+        page += 1
+        pi = conn.get("page_info") or {}
+        print(f"  timeline p{page}: {len(posts)} posts", file=sys.stderr, flush=True)
+        if not pi.get("has_next_page"):
+            break
+        after = pi.get("end_cursor")
+        time.sleep(delay + random.uniform(0, 1))
+    return posts
 
 
-TRIES = 12
+def page_clips(ig, uid, doc_id, delay, max_pages):
+    """Real play counts. Reels only, keyed by code."""
+    plays, max_id, page = {}, None, 0
+    while page < max_pages:
+        data = {"include_feed_video": True, "page_size": 12,
+                "target_user_id": str(uid)}
+        if max_id is not None:
+            data["max_id"] = max_id
+        d = ig.graphql(doc_id, {"data": data})
+        conn = ((d.get("data") or {})
+                .get("xdt_api__v1__clips__user__connection_v2"))
+        if not conn:
+            raise RuntimeError(f"clips: unexpected shape {str(d)[:200]}")
+        for e in conn.get("edges", []):
+            m = (e.get("node") or {}).get("media") or e.get("node") or {}
+            if m.get("code"):
+                plays[m["code"]] = m.get("play_count") or m.get("ig_play_count")
+        page += 1
+        pi = conn.get("page_info") or {}
+        print(f"  clips p{page}: {len(plays)} play counts", file=sys.stderr, flush=True)
+        if not pi.get("has_next_page"):
+            break
+        max_id = pi.get("end_cursor")
+        time.sleep(delay + random.uniform(0, 1))
+    return plays
 
 
-def scrape(handle, max_pages=60, delay=25.0):
+def scrape(handle, delay=2.0, max_pages=40):
     out = ROOT / "data" / handle
     out.mkdir(parents=True, exist_ok=True)
-    path = out / "index.json"
 
-    posts, cursor, profile = [], None, None
-    if path.exists():                     # resume
-        prev = json.loads(path.read_text())
-        posts, cursor, profile = prev["posts"], prev.get("cursor"), prev.get("profile")
-        print(f"  resuming: {len(posts)} posts already on disk, cursor={bool(cursor)}",
+    ig = IG()
+    html = ig.warm(handle)
+    uid, profile = ig.user_id(handle)
+    print(f"  {handle}: id={uid} followers={profile['followers']:,} "
+          f"posts={profile['post_count']}", file=sys.stderr, flush=True)
+
+    doc_posts, doc_clips = DOC_POSTS, DOC_CLIPS
+    try:
+        posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
+    except (urllib.error.HTTPError, RuntimeError) as e:
+        print(f"  timeline doc_id looks stale ({e}) — discovering from JS bundle",
               file=sys.stderr, flush=True)
+        found = discover_doc_ids(ig, html)
+        doc_posts = found.get("PolarisProfilePostsQuery", doc_posts)
+        print(f"  using doc_id={doc_posts}", file=sys.stderr, flush=True)
+        posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
 
-    uid, prof = profile_of(handle)
-    profile = prof
-    print(f"  {handle}: id={uid} followers={prof['followers']:,} "
-          f"posts={prof['post_count']}", file=sys.stderr, flush=True)
-
-    page, done = 0, False
-    while page < max_pages:
-        url = f"https://www.instagram.com/api/v1/feed/user/{uid}/?count=33"
-        if cursor:
-            url += f"&max_id={cursor}"
-        d = get_retry(url, handle, tries=TRIES)
-        if d is None:
-            print("  exhausted retries — saving what we have", file=sys.stderr, flush=True)
-            break
-        batch = d.get("items") or []
-        posts += [normalize(i) for i in batch]
-        page += 1
-        cursor = d.get("next_max_id")
-        uniq = save(path, profile, posts, cursor, False)
-        reels = sum(1 for p in uniq if p["is_reel"])
-        print(f"  page {page}: +{len(batch)} -> {len(uniq)} posts / {reels} reels",
+    try:
+        plays = page_clips(ig, uid, doc_clips, delay, max_pages)
+    except (urllib.error.HTTPError, RuntimeError) as e:
+        print(f"  clips pass failed ({e}) — continuing without play counts",
               file=sys.stderr, flush=True)
-        if not d.get("more_available") or not cursor:
-            done = True
-            break
-        time.sleep(delay + random.uniform(0, delay * 0.4))
+        plays = {}
 
-    uniq = save(path, profile, posts, cursor, done)
-    reels = sum(1 for p in uniq if p["is_reel"])
-    print(f"  DONE complete={done}: {len(uniq)} posts, {reels} reels -> {path}",
+    for p in posts:
+        if p["code"] in plays:
+            p["play_count"] = plays[p["code"]]
+
+    posts.sort(key=lambda p: p.get("taken_at") or 0, reverse=True)
+    (out / "index.json").write_text(json.dumps({
+        "profile": profile, "scraped_at": int(time.time()),
+        "doc_ids": {"posts": doc_posts, "clips": doc_clips},
+        "complete": True, "posts": posts,
+    }, indent=2, ensure_ascii=False))
+
+    reels = [p for p in posts if p["is_reel"]]
+    withpc = [p for p in reels if p["play_count"]]
+    print(f"  DONE: {len(posts)} posts, {len(reels)} reels, "
+          f"{len(withpc)} with play counts -> {out/'index.json'}",
           file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("handle")
-    ap.add_argument("--max-pages", type=int, default=60)
-    ap.add_argument("--delay", type=float, default=25.0)
-    ap.add_argument("--tries", type=int, default=12)
+    ap.add_argument("--delay", type=float, default=2.0)
+    ap.add_argument("--max-pages", type=int, default=40)
     a = ap.parse_args()
-    globals()["TRIES"] = a.tries
-    scrape(a.handle.lstrip("@"), a.max_pages, a.delay)
+    scrape(a.handle.lstrip("@"), a.delay, a.max_pages)

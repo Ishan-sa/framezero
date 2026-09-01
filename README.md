@@ -67,24 +67,45 @@ reruns on its own. `scrape.py` resumes from whatever is already there.
 | `--window 90` | rank | Baseline window in days. Shrink it for creators who grew fast. |
 | `--keep-mp4` | fetch | Keep the video, not just the audio. |
 
-## The rate limit, honestly
+## How it gets the data, and why that matters
 
-The public endpoint this uses is real and returns real data, but Instagram
-throttles anonymous access aggressively per IP. In practice the first page
-returns instantly and then you get:
+Instagram gated the old REST timeline (`/api/v1/feed/user/`) for logged-out
+clients. It now answers 401 on the very first request from a cold IP with:
 
 ```
-HTTP 401 {"message":"Please wait a few minutes before you try again.",
-          "require_login":true,"igweb_rollout":true}
+{"message":"Please wait a few minutes before you try again.",
+ "require_login":true,"igweb_rollout":true}
 ```
 
-`scrape.py` treats that as "slow down" rather than "no": it backs off
-exponentially, saves after every single page, and resumes from disk on the next
-run. **Expect a full profile to take a while, and expect to run it more than
-once.** That is the tradeoff for not paying anyone.
+**That message is a lie.** It is not a throttle and no cooldown clears it — it
+is the generic string Instagram returns for a retired or gated surface. Backing
+off and retrying is the trap; it costs hours and never succeeds. The same is
+true of the legacy `query_hash` route and the older `doc_id`s that instaloader
+and gallery-dl still ship.
 
-Do not lower `--delay` to speed it up. You will get blocked for longer and
-finish later.
+What works anonymously is two GraphQL calls joined on `code`:
+
+| call | gives you | missing |
+|---|---|---|
+| `PolarisProfilePostsQuery` | captions, timestamps, likes, comments, `video_versions[]` CDN URLs, DASH manifest | `view_count` is always null logged-out |
+| clips user connection | real `play_count` per reel | no video URLs, no timestamps |
+
+Duration is not returned at all any more, so reelmine parses
+`mediaPresentationDuration` out of the DASH manifest that ships with each post.
+Same number, no extra request.
+
+**The only header that matters is the CSRF pair.** Fetch the profile page,
+keep the `csrftoken` cookie, echo it back as `X-CSRFToken`. The cookie alone is
+rejected with a 403. A browser User-Agent, `X-IG-App-ID`, `X-ASBD-ID`,
+`Referer` and `Sec-Fetch-*` are all cargo cult on this endpoint — though
+`X-IG-App-ID` *is* required for the one REST call that resolves the user id.
+
+Two seconds between pages is plenty; there is no meaningful rate limit on this
+path. A 370-post profile takes about a minute.
+
+**`doc_id`s rotate every two to four weeks.** When one stops working, reelmine
+scrapes the current value out of Instagram's own JS bundle rather than failing.
+That is why this keeps working when the libraries above do not.
 
 ## Scope and etiquette
 

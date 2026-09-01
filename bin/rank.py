@@ -14,6 +14,7 @@ differently. The delta is the whole point.
 Writes data/<handle>/ranked.json
 """
 import json, statistics, pathlib, argparse, sys
+from datetime import datetime, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DAY = 86400
@@ -44,10 +45,17 @@ def score(reels, window_days=90, min_neighbours=5):
     return reels
 
 
-def main(handle, top, bottom, window):
+def main(handle, top, bottom, window, since):
     d = ROOT / "data" / handle
     idx = json.loads((d / "index.json").read_text())
     reels = [p for p in idx["posts"] if p.get("is_reel") and p.get("play_count")]
+    if since:
+        cut = datetime.strptime(since, "%Y-%m-%d").replace(
+            tzinfo=timezone.utc).timestamp()
+        before = len(reels)
+        reels = [r for r in reels if (r.get("taken_at") or 0) >= cut]
+        print(f"since {since}: dropped {before - len(reels)} older reels",
+              file=sys.stderr)
     if not reels:
         sys.exit("no reels with play counts in index.json")
     score(reels, window)
@@ -64,6 +72,7 @@ def main(handle, top, bottom, window):
         "profile": idx.get("profile"),
         "reel_count": len(reels),
         "window_days": window,
+        "since": since,
         "median_plays": statistics.median([r["play_count"] for r in reels]),
         "study_set": winners + controls,
         "all_ranked": ranked,
@@ -87,5 +96,7 @@ if __name__ == "__main__":
     ap.add_argument("--top", type=int, default=15)
     ap.add_argument("--bottom", type=int, default=15)
     ap.add_argument("--window", type=int, default=90)
+    ap.add_argument("--since", help="drop reels before YYYY-MM-DD; use it to cut "
+                                    "a creator's pre-pivot content")
     a = ap.parse_args()
-    main(a.handle.lstrip("@"), a.top, a.bottom, a.window)
+    main(a.handle.lstrip("@"), a.top, a.bottom, a.window, a.since)

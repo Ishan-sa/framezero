@@ -58,8 +58,9 @@ already-famous entities in their opening two sentences; his controls named
 0.58. The scripts are structurally identical — same format, same CTA, same
 delivery, similar length. A 3.2M-play reel and a 7.7K-play reel from the same
 creator, written the same way, differed mainly in whether the subject was a
-household-name tool or an unknown one. The matching negative: openers that withhold the subject and refer to it only as an unnamed category ran 8% of winners and 41% of
-controls.
+household-name tool or an unknown one. The matching negative: openers that
+withhold the subject and refer to it only as an unnamed category ran 8% of
+winners and 41% of controls.
 
 **Small samples lie confidently.** The first pass here used 6 reels and
 produced a clean, plausible, completely false rule about length, with zero

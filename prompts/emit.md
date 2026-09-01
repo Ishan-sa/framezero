@@ -16,12 +16,16 @@ Each skill is a directory:
   swipe-file.md     annotated real examples from the corpus
 ```
 
-Voice lives outside the skills, in a single shared file, because structure and
-voice are used independently:
+Voice lives in its own file per creator, because a writer picks a structure and
+a voice separately — and because two voices must never be merged into one:
 
 ```
-voice-<handle>.md   the optional voice layer, <= 200 words
+voice-<handle>.md   one creator's derived voice layer
 ```
+
+You do not write these from impression. `data/<handle>/voice.md` is generated
+by `bin/voice.py` and already contains measured dials, signature phrases, and
+real exemplar lines. Carry it across; do not paraphrase it.
 
 ## SKILL.md rules
 
@@ -53,21 +57,50 @@ are load-bearing and which are provisional.
 
 ## Voice layer rules
 
-Default behaviour: **their structure, the writer's own words.** The skill uses
-the structure profile always. The voice file is applied only when the writer
-explicitly asks for it.
+**Sounding like a specific creator is a first-class job of this tool, not an
+extra.** Most people who want to write for social media already have someone
+they wish they sounded like. Serving that is the point.
 
-This matters. Copying structure is learning a craft. Copying diction is
-producing a knockoff of someone who already has the audience — and it stops
-scaling the moment you study a second creator, because two voices don't merge.
+So: when the writer names a creator to sound like, the voice layer is loaded
+and it is binding. When they name nobody, the skill uses structure only and
+says so, rather than quietly imposing the model's own register — which is what
+produces an essay read aloud instead of a reel.
 
-State this in the skill, once, plainly. Then make the voice layer easy to turn
-on for the writer who wants it anyway.
+**One voice at a time.** Structure findings pool across creators; that is what
+makes them trustworthy. Voice does the opposite — averaging two people produces
+a third person who does not exist and sounds like nobody. Pool voices only when
+the writer explicitly asks, and warn them what it costs.
+
+**The dials are targets, not decoration.** Put the target bands from
+`voice.md` into the skill, and make the check loop mandatory:
+
+```
+./framezero check draft.txt --like <handle>
+```
+
+Every draft gets written, checked, and fixed before it is returned. A skill
+that emits a script without running the check is not finished. Say this in the
+skill in the imperative, next to the return format.
+
+**Fix by rewriting the beat, not by tuning tokens.** A script edited word by
+word to land inside a band reads worse than one that missed it honestly. If
+contractions are low, the sentences are written rather than spoken — rewrite
+them as speech. If second person is low, the script is *about* a subject
+instead of addressed to a viewer — that is a framing problem, not a word
+problem.
+
+**Carry the exemplars.** Statistics alone will get the numbers right and still
+sound wrong. The exemplar lines in `voice.md` are the few-shot material and
+they do more work than the dials do. Include them verbatim.
 
 ## Bootstrapping the writer's own voice
 
 A writer starting from zero has no voice profile, because they have no
-content. Say so in the voice file rather than pretending otherwise. Note that
-the same pipeline pointed at their own handle replaces the hand-written
-placeholder with a real extracted profile once they have roughly twenty reels
-of their own — and that this is the intended end state, not a fallback.
+content. Say so in the voice file rather than pretending otherwise. Until then
+they borrow one: pick the creator they most want to sound like and write in
+that voice deliberately, with the check loop on.
+
+Point the same pipeline at their own handle once they have roughly twenty reels
+and `voice.py` extracts their real profile, which replaces the borrowed one.
+That is the intended end state, not a fallback — the borrowed voice is
+scaffolding, and the tool should tell them so plainly.

@@ -3,6 +3,8 @@
 
   ./framezero new  <project> --niche "..." --mode informational=a,b --mode funny=c
   ./framezero run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
+  ./framezero voice <handle> [--project P]   derive a creator's voice fingerprint
+  ./framezero check <script> --like <handle>  score a draft against that voice
   ./framezero show <project>
 
 `run` is safe to repeat: every stage skips work already on disk.
@@ -63,6 +65,13 @@ def run(a):
     head("niche lexicon")
     sh("project.py", "lexicon", a.project)
 
+    # Voice runs after every creator, not inside the loop: a signature phrase
+    # is one this creator uses and the others do not, so it cannot be computed
+    # until the others exist.
+    for h in handles:
+        head(f"voice: @{h}")
+        sh("voice.py", "profile", h, "--project", a.project)
+
     for mode in ([a.mode] if a.mode else list(cfg["modes"])):
         head(f"cross-creator: {mode}")
         sh("aggregate.py", a.project, mode)
@@ -71,9 +80,14 @@ def run(a):
 Done. Hand these to your agent:
 
   data/_projects/{a.project}/<mode>.md   which findings REPLICATE (read first)
-  data/<handle>/report.md                per-creator countable deltas
+  data/<handle>/report.md                per-creator countable deltas — structure
+  data/<handle>/voice.md                 how that creator SOUNDS — dials + exemplars
   data/<handle>/corpus.md                the transcripts themselves
   prompts/extract.md, prompts/emit.md    how to turn that into skills
+
+Then check every draft against the voice you are writing in:
+
+  ./framezero check script.txt --like <handle>
 """, file=sys.stderr)
 
 
@@ -90,6 +104,14 @@ if __name__ == "__main__":
     s = sub.add_parser("show", help="project status")
     s.add_argument("name")
 
+    v = sub.add_parser("voice", help="derive a creator's voice fingerprint")
+    v.add_argument("handle"); v.add_argument("--project")
+
+    k = sub.add_parser("check", help="score a draft script against a voice")
+    k.add_argument("script")
+    k.add_argument("--like", required=True,
+                   help="handle, or comma-separated handles to pool")
+
     r = sub.add_parser("run", help="run the pipeline for a project")
     r.add_argument("project")
     r.add_argument("--mode", help="only creators studied for this mode")
@@ -100,6 +122,13 @@ if __name__ == "__main__":
     a = ap.parse_args()
     if a.cmd == "run":
         run(a)
+    elif a.cmd == "voice":
+        args = ["voice.py", "profile", a.handle]
+        if a.project:
+            args += ["--project", a.project]
+        sys.exit(0 if sh(*args) else 1)
+    elif a.cmd == "check":
+        sys.exit(0 if sh("voice.py", "check", a.script, "--like", a.like) else 1)
     else:
         args = ["project.py", a.cmd, a.name]
         for flag in ("niche", "vocabulary", "since"):

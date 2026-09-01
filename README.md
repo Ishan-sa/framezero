@@ -35,6 +35,46 @@ unless you give it an initial prompt. reelmine seeds one, and loads that seed
 with the creator's own domain vocabulary — so it stops writing "N8 N",
 "make dot com", and "cloud" when it means Claude. One flag, two wins.
 
+## What 616 reels actually showed
+
+Run against two creators in the same niche — 221 and 395 reels, each split
+into winners and controls against their own contemporaneous baseline. Worth
+reading before you trust anything you have been told about short-form.
+
+**A concrete number in the first two sentences replicated.** 60% of winners vs
+21% of controls for one creator; 58% vs 25% for the other. Two different
+formats, two different audiences, near-identical split. It is the most
+reliable finding in the dataset.
+
+**Length is not a lever.** Correlation between duration and performance:
+**-0.058** across 221 reels and **-0.006** across 395. Every quartile of one
+creator's ranking had a median duration of 47-49 seconds. And the two
+creators' tails point in *opposite* directions — one's winners are shorter
+than her controls, the other's are longer. That is what noise looks like.
+Every "keep it under N seconds" rule you have ever read is unsupported here.
+
+**The named subject carries the reel.** One creator's winners named 1.67
+already-famous entities in their opening two sentences; his controls named
+0.58. The scripts are structurally identical — same format, same CTA, same
+delivery, similar length. A 3.2M-play reel and a 7.7K-play reel from the same
+creator, written the same way, differed mainly in whether the subject was a
+household-name tool or an unknown one. The matching negative: openers that withhold the subject and refer to it only as an unnamed category ran 8% of winners and 41% of
+controls.
+
+**Small samples lie confidently.** The first pass here used 6 reels and
+produced a clean, plausible, completely false rule about length, with zero
+overlap between cohorts. Scaling to the full catalogue destroyed it — and
+re-baselining revealed that the reel that pass had called the best performer
+was actually running at 0.818x, *below* the creator's median. Six reels had it
+studying an underperformer. **This is the entire argument for scraping the
+catalogue rather than eyeballing a handful.**
+
+**One finding did not replicate,** and the tool was only able to tell because
+it ran twice: interview framing (an off-camera voice asks, the creator
+answers) split 5-of-15 winners against 0-of-15 controls for one creator, and
+appeared nowhere at all in the other's catalogue. A real edge for her, not a
+law of the format. Anything measured on a single creator is a bet.
+
 ## Requirements
 
 - Python 3.9+ (standard library only — no pip install)

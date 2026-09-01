@@ -1,0 +1,13 @@
+# Scraped creator data stays local. Never commit someone else's content.
+data/
+*.mp4
+*.wav
+*.log
+
+# Generated skills are per-user output, not source
+out/
+
+.DS_Store
+__pycache__/
+*.pyc
+.venv/

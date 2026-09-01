@@ -74,6 +74,20 @@ get there, not before.
    a retired surface, there is no cooldown, and backing off costs hours and never
    succeeds. `scrape.py` already uses the two GraphQL calls that do work.
 
+   **Instagram returns that identical string for two different things**, and you
+   cannot tell them apart from the response: a permanently retired surface, and a
+   temporarily blocked one. `/api/v1/users/web_profile_info/` — the one call that
+   still fetches follower count, bio, category and related accounts — now answers
+   it too, IP-wide, for handles never touched. So:
+
+   - **Never let it kill a run.** `scrape.py` falls back to
+     `user_id_from_timeline()`, which lifts the user id and basic identity off
+     the post timeline. Every downstream stage still works; only the identity
+     block in the dossier is thinner.
+   - **Do not build in a retry loop.** If it is the rollout, no wait clears it.
+   - **Do offer `--refresh` later.** If it was a throttle, it comes back, and
+     `--refresh` refills the missing fields.
+
 4. **Only REPLICATED findings become rules.** A finding measured on one creator
    is that creator's habit, not a law of the format. Write it into a skill as a
    bet, labelled as one — never as a rule.
@@ -303,7 +317,8 @@ Rules for using it:
 | symptom | cause | fix |
 |---|---|---|
 | `scrape.py` returns 0 posts | `doc_id` rotated (happens every 2–4 weeks) | It self-heals — it scrapes the current id out of Instagram's JS bundle. Re-run once. |
-| 401 with *"Please wait a few minutes"* | you (or a patch) hit the retired REST endpoint | Do not back off. See ground rule 3. |
+| 401 on `/api/v1/feed/user/` | the retired REST timeline | Do not back off. See ground rule 3. |
+| `profile endpoint unavailable (401) — falling back to the timeline` | `web_profile_info` is gated or throttled for your IP | **Nothing is broken.** The run continues; the dossier says which identity fields are missing. Retry with `--refresh` later. |
 | Transcripts are all lowercase, no punctuation | whisper ran without a seed prompt | Pass `--project <name>` to `listen.py`. This is not optional. |
 | Whisper writes "N8 N", "make dot com", "cloud" | niche vocabulary missing from the project | Add the terms to `vocabulary`, delete the bad transcripts, re-run `listen.py`. |
 | Every finding says SINGLE | only one creator in that mode | Add a second creator. This is the tool working correctly. |

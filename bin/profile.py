@@ -194,6 +194,8 @@ def build(handle):
     if plays:
         reach = {
             "reels_with_plays": len(plays),
+            "reels_total": len(reels),
+            "play_coverage_pct": round(pct(len(plays), len(reels)), 1),
             "median_plays": int(st.median(plays)),
             "mean_plays": int(st.mean(plays)),
             "p90_plays": int(sorted(plays)[int(len(plays) * 0.9)]),
@@ -225,13 +227,19 @@ def build(handle):
             "posts_reachable": len(posts),
             "external_url": prof.get("external_url"),
             "bio_links": prof.get("bio_links") or [],
+            "partial": bool(prof.get("partial")),
+            "partial_reason": prof.get("partial_reason"),
         },
         "catalogue": {
             "reels": len(reels),
             "non_reels": len(posts) - len(reels),
             "earliest_reachable": first.strftime("%Y-%m-%d") if first else None,
             "latest": last.strftime("%Y-%m-%d") if last else None,
-            "complete": len(posts) >= (prof.get("post_count") or 0),
+            # None, not True, when the total is unknown -- "we reached
+            # everything" is a claim, and without post_count we cannot make it.
+            "complete": (len(posts) >= prof["post_count"]
+                         if prof.get("post_count") else None),
+            "truncated": idx.get("truncated") or {},
             "by_quarter": cadence(posts),
         },
         "reach": reach,
@@ -255,13 +263,32 @@ def markdown(d):
           ""]
     if i["bio"]:
         L += ["> " + i["bio"].replace("\n", "  \n> "), ""]
-    L += ["| | |", "|---|---|",
-          f"| followers | **{i['followers']:,}** |" if i["followers"] else "",
-          f"| following | {i['following']:,} |" if i["following"] else "",
-          f"| category | {i['category'] or '—'} |",
-          f"| posts | {i['posts_total']:,} total, {i['posts_reachable']:,} reachable |"
-          if i["posts_total"] else "",
-          f"| link | {i['external_url']} |" if i["external_url"] else "", ""]
+    rows = [
+        f"| followers | **{i['followers']:,}** |" if i["followers"]
+        else "| followers | _unavailable_ |",
+        f"| following | {i['following']:,} |" if i["following"] else None,
+        f"| category | {i['category']} |" if i["category"] else None,
+        f"| posts | {i['posts_total']:,} total, {i['posts_reachable']:,} reachable |"
+        if i["posts_total"] else f"| posts | {i['posts_reachable']:,} reachable |",
+        f"| link | {i['external_url']} |" if i["external_url"] else None,
+    ]
+    # A blank string here would split the table in two; drop the rows that do
+    # not apply rather than emitting empty ones.
+    L += ["| | |", "|---|---|"] + [r for r in rows if r] + [""]
+    if i["partial"]:
+        # Better a stated gap than a table of blanks the reader has to
+        # interpret. Everything below this block is computed from the posts
+        # and is unaffected.
+        L += ["> [!WARNING]",
+              "> **Partial identity.** " + (i["partial_reason"] or ""),
+              ">",
+              "> Missing: follower and following counts, bio, category, "
+              "external links, and related accounts. **Everything below — "
+              "reach, spread, trajectory, content mix, monetisation — is "
+              "computed from the posts and is unaffected.**",
+              ">",
+              "> Retry later with `--refresh`; the endpoint comes and goes.",
+              ""]
     if i["bio_links"]:
         L += ["Bio links: " + ", ".join(
             f"[{b['title'] or b['url']}]({b['url']})" for b in i["bio_links"]), ""]
@@ -269,6 +296,8 @@ def markdown(d):
     L += ["## Reach", ""]
     if r:
         L += ["| | |", "|---|---|",
+              f"| reels with play counts | {r['reels_with_plays']:,} of "
+              f"{r['reels_total']:,} ({r['play_coverage_pct']}%) |",
               f"| median plays | **{r['median_plays']:,}** |",
               f"| mean plays | {r['mean_plays']:,} |",
               f"| top decile | {r['p90_plays']:,} |",
@@ -323,8 +352,22 @@ def markdown(d):
     L += ["## Catalogue", "",
           f"- **{c['reels']:,} reels**, {c['non_reels']:,} other posts",
           f"- reachable range: {c['earliest_reachable']} → {c['latest']}",
-          f"- {'full catalogue reached' if c['complete'] else 'partial — Instagram paginates only so far back, so the true start is earlier'}",
+          "- " + ("full catalogue reached" if c["complete"]
+                  else "partial — Instagram paginates only so far back, so the "
+                       "true start is earlier" if c["complete"] is False
+                  else "coverage unknown — the post total comes from the "
+                       "profile endpoint, which did not answer"),
           ""]
+    tr = c.get("truncated") or {}
+    if tr.get("timeline") or tr.get("clips"):
+        hit = ", ".join(k for k in ("timeline", "clips") if tr.get(k))
+        L += ["> [!WARNING]",
+              f"> **Catalogue truncated** — the {hit} pass stopped at the "
+              f"{tr.get('max_pages')}-page cap with more to fetch. Every number "
+              "above is computed from a slice, and the baseline a slice "
+              "produces is not this creator's median.",
+              ">",
+              "> Re-run with a higher `--max-pages`.", ""]
     types = d["content"]["post_types"]
     if types:
         L += ["Post types: " + ", ".join(f"`{k}` {v}" for k, v in types), ""]

@@ -87,7 +87,14 @@ class IG:
             return json.load(r)
 
     def user_id(self, handle):
-        """The one call that still needs X-IG-App-ID."""
+        """Identity, the rich way. Needs X-IG-App-ID.
+
+        This is a REST surface, and REST surfaces here are being retired one by
+        one -- /api/v1/feed/user/ went first and this one now answers 401 with
+        the same "Please wait a few minutes" string, which is not a wait and
+        never clears. So every caller must be able to survive losing it; see
+        user_id_from_timeline below.
+        """
         req = urllib.request.Request(
             "https://www.instagram.com/api/v1/users/web_profile_info/"
             f"?username={handle}",
@@ -121,6 +128,51 @@ class IG:
                 for e in (u.get("edge_related_profiles") or {}).get("edges", [])
                 if not e["node"].get("is_private")],
         }
+
+
+def user_id_from_timeline(ig, handle, doc_id):
+    """Identity, the durable way.
+
+    Every timeline post carries its owner. That is less than the profile
+    endpoint gives -- no follower count, no bio, no category, no related
+    accounts -- but it is enough for the pipeline to run, and it comes from
+    the GraphQL surface that still answers. One post is all we ask for.
+    """
+    v = {"data": {"count": 1}, "username": handle,
+         "__relay_internal__pv__PolarisIsLoggedInrelayprovider": False,
+         **RELAY_PROVIDERS}
+    d = ig.graphql(doc_id, v)
+    conn = ((d.get("data") or {})
+            .get("xdt_api__v1__feed__user_timeline_graphql_connection")) or {}
+    edges = conn.get("edges") or []
+    if not edges:
+        raise RuntimeError(f"no posts returned for @{handle}")
+    u = (edges[0].get("node") or {}).get("user") or {}
+    uid = u.get("pk") or u.get("id")
+    if not uid:
+        raise RuntimeError(f"timeline carried no owner for @{handle}")
+    return str(uid), {
+        "handle": handle,
+        "full_name": u.get("full_name"),
+        "biography": None,
+        "followers": None,
+        "following": None,
+        "post_count": None,
+        "category": None,
+        "business_category": None,
+        "is_verified": u.get("is_verified"),
+        "is_professional": None,
+        "is_business": None,
+        "external_url": None,
+        "bio_links": [],
+        "related_profiles": [],
+        # Says out loud which fields could not be filled, so the dossier can
+        # report a gap instead of implying the creator has no bio and no
+        # followers.
+        "partial": True,
+        "partial_reason": "Instagram's profile endpoint returned 401; "
+                          "identity came from the post timeline instead.",
+    }
 
 
 def discover_doc_ids(ig, html):
@@ -234,14 +286,20 @@ def page_timeline(ig, handle, doc_id, delay, max_pages):
         pi = conn.get("page_info") or {}
         print(f"  timeline p{page}: {len(posts)} posts", file=sys.stderr, flush=True)
         if not pi.get("has_next_page"):
-            break
+            return posts, False
         after = pi.get("end_cursor")
         time.sleep(delay + random.uniform(0, 1))
-    return posts
+    # Fell out of the loop with more to fetch: the cap truncated the catalogue.
+    return posts, True
 
 
 def page_clips(ig, uid, doc_id, delay, max_pages):
-    """Real play counts. Reels only, keyed by code."""
+    """Real play counts. Reels only, keyed by code.
+
+    page_size is a request, not a promise: the server returns 12 whatever you
+    ask for. So a 1,300-reel catalogue is ~110 requests, and the page cap has
+    to be generous or the ranking silently runs on a truncated set.
+    """
     plays, max_id, page = {}, None, 0
     while page < max_pages:
         data = {"include_feed_video": True, "page_size": 12,
@@ -261,39 +319,55 @@ def page_clips(ig, uid, doc_id, delay, max_pages):
         pi = conn.get("page_info") or {}
         print(f"  clips p{page}: {len(plays)} play counts", file=sys.stderr, flush=True)
         if not pi.get("has_next_page"):
-            break
+            return plays, False
         max_id = pi.get("end_cursor")
         time.sleep(delay + random.uniform(0, 1))
-    return plays
+    return plays, True
 
 
-def scrape(handle, delay=2.0, max_pages=40):
+def scrape(handle, delay=2.0, max_pages=400):
     out = ROOT / "data" / handle
     out.mkdir(parents=True, exist_ok=True)
 
     ig = IG()
     html = ig.warm(handle)
-    uid, profile = ig.user_id(handle)
-    print(f"  {handle}: id={uid} followers={profile['followers']:,} "
-          f"posts={profile['post_count']}", file=sys.stderr, flush=True)
 
     doc_posts, doc_clips = DOC_POSTS, DOC_CLIPS
     try:
-        posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
+        uid, profile = ig.user_id(handle)
+    except (urllib.error.HTTPError, KeyError, ValueError) as e:
+        code = getattr(e, "code", None)
+        print(f"  profile endpoint unavailable ({code or type(e).__name__}) — "
+              "falling back to the timeline for identity",
+              file=sys.stderr, flush=True)
+        try:
+            uid, profile = user_id_from_timeline(ig, handle, doc_posts)
+        except (urllib.error.HTTPError, RuntimeError):
+            found = discover_doc_ids(ig, html)
+            doc_posts = found.get("PolarisProfilePostsQuery", doc_posts)
+            uid, profile = user_id_from_timeline(ig, handle, doc_posts)
+
+    followers = (f"{profile['followers']:,}" if profile.get("followers")
+                 else "unknown")
+    print(f"  {handle}: id={uid} followers={followers} "
+          f"posts={profile.get('post_count') or '?'}",
+          file=sys.stderr, flush=True)
+    try:
+        posts, cut_posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
     except (urllib.error.HTTPError, RuntimeError) as e:
         print(f"  timeline doc_id looks stale ({e}) — discovering from JS bundle",
               file=sys.stderr, flush=True)
         found = discover_doc_ids(ig, html)
         doc_posts = found.get("PolarisProfilePostsQuery", doc_posts)
         print(f"  using doc_id={doc_posts}", file=sys.stderr, flush=True)
-        posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
+        posts, cut_posts = page_timeline(ig, handle, doc_posts, delay, max_pages)
 
     try:
-        plays = page_clips(ig, uid, doc_clips, delay, max_pages)
+        plays, cut_plays = page_clips(ig, uid, doc_clips, delay, max_pages)
     except (urllib.error.HTTPError, RuntimeError) as e:
         print(f"  clips pass failed ({e}) — continuing without play counts",
               file=sys.stderr, flush=True)
-        plays = {}
+        plays, cut_plays = {}, False
 
     for p in posts:
         if p["code"] in plays:
@@ -303,7 +377,13 @@ def scrape(handle, delay=2.0, max_pages=40):
     (out / "index.json").write_text(json.dumps({
         "profile": profile, "scraped_at": int(time.time()),
         "doc_ids": {"posts": doc_posts, "clips": doc_clips},
-        "complete": True, "posts": posts,
+        # A truncated catalogue is not a complete one. Getting this wrong is
+        # worse than the truncation itself: rank.py would then compute a
+        # baseline from a slice and present it as the creator's median.
+        "complete": not (cut_posts or cut_plays),
+        "truncated": {"timeline": cut_posts, "clips": cut_plays,
+                      "max_pages": max_pages},
+        "posts": posts,
     }, indent=2, ensure_ascii=False))
 
     reels = [p for p in posts if p["is_reel"]]
@@ -317,6 +397,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("handle")
     ap.add_argument("--delay", type=float, default=2.0)
-    ap.add_argument("--max-pages", type=int, default=40)
+    # A safety valve, not a budget. Both passes stop on their own when the
+    # cursor runs out; this only bounds a runaway. The clips pass is the
+    # binding one -- 12 reels a page means a 1,300-reel account needs ~110.
+    ap.add_argument("--max-pages", type=int, default=400)
     a = ap.parse_args()
     scrape(a.handle.lstrip("@"), a.delay, a.max_pages)

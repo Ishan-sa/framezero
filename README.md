@@ -557,6 +557,15 @@ Duration is not returned at all any more, so framezero parses
 `mediaPresentationDuration` out of the DASH manifest that ships with each post.
 Same number, no extra request.
 
+**One REST call survives, and it is not load-bearing.**
+`/api/v1/users/web_profile_info/` is the only source of follower count, bio,
+category and related accounts. It is now being gated the same way — the same
+`"Please wait a few minutes"` string, IP-wide, on handles you have never
+touched. So nothing depends on it: `scrape.py` lifts the user id and basic
+identity off the post timeline instead, the run completes either way, and the
+dossier states which fields it could not fill rather than showing blanks.
+Retry with `./framezero profile <handle> --refresh` if it comes back.
+
 **The only header that matters is the CSRF pair.** Fetch the profile page, keep
 the `csrftoken` cookie, echo it back as `X-CSRFToken`. The cookie alone is
 rejected with a 403. A browser User-Agent, `X-ASBD-ID`, `Referer` and `Sec-Fetch-*`

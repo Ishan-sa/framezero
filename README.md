@@ -113,6 +113,13 @@ more than one. Pooling a comedy account with a tutorial account would compare
 two different crafts, so the pipeline keeps them apart and only compares
 like with like.
 
+If one creator changed niche and their older reels would poison the baseline,
+give that creator their own cutoff rather than the whole project:
+
+```json
+"creators": { "somehandle": { "since": "2025-06-01" } }
+```
+
 `run` is safe to repeat — every stage skips work already on disk. Add
 `--mode funny` or `--only handle` to narrow it.
 

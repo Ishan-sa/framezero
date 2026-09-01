@@ -49,8 +49,9 @@ def run(a):
 
         rank = ["rank.py", h, "--top", a.top, "--bottom", a.bottom,
                 "--window", cfg.get("baseline_window_days", 90)]
-        if cfg.get("since"):
-            rank += ["--since", cfg["since"]]
+        since = P.since_for(cfg, h)
+        if since:
+            rank += ["--since", since]
         sh(*rank)
         sh("fetch.py", h)
         sh("listen.py", h, "--project", a.project)

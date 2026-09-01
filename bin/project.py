@@ -44,7 +44,13 @@ TEMPLATE = {
     "niche": {"label": None, "vocabulary": [], "seed_prompt": None},
     "modes": {},
     "baseline_window_days": 90,
+    # Project-wide floor. Usually leave this null -- a niche pivot belongs to
+    # one creator, not to everyone you study.
     "since": None,
+    # Per-creator overrides, e.g. {"somehandle": {"since": "2025-06-01"}}.
+    # Use this when a creator changed niche and their old content would
+    # poison the baseline.
+    "creators": {},
 }
 
 
@@ -80,6 +86,14 @@ def creators(cfg):
 def modes_for(cfg, handle):
     return [m for m, spec in cfg["modes"].items()
             if handle in spec.get("creators", [])]
+
+
+def since_for(cfg, handle):
+    """A creator who changed niche needs their own cutoff. Applying one
+    creator's pivot date to the whole project silently throws away other
+    people's data -- which it did, dropping 121 of one creator's 395 reels."""
+    return (cfg.get("creators", {}).get(handle, {}).get("since")
+            or cfg.get("since"))
 
 
 def seed_prompt(cfg):

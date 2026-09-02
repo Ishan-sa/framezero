@@ -93,6 +93,129 @@ def spread(reels):
             "bottom_decile_multiple": p10 / med if med else 0}
 
 
+# Plays per follower, banded. Rules of thumb, not measurements, and the report
+# says so -- but the shape of the question is real: an account whose reels do
+# not reach its own followers is describing an audience that is no longer
+# there. The floors are set for Reels specifically, where distribution to
+# non-followers is the norm and a large list is always partly dormant.
+PPF_BANDS = [
+    (0.50, "strong",
+     "Reels are reaching well past the follower base. Followers are the "
+     "floor here, not the ceiling."),
+    (0.15, "healthy",
+     "Normal for an account this size. Reels reach a real share of the list "
+     "and some way past it."),
+    (0.05, "thin",
+     "Most of the list is not being served these reels — an audience that "
+     "arrived for a different format, or one that has drifted."),
+    (0.00, "not credible",
+     "A follower base this size should not produce views this small. Bought, "
+     "decayed, or grown somewhere the reels do not reach."),
+]
+
+ENG_BANDS = [(0.04, "strong"), (0.02, "normal"), (0.01, "weak"), (0.0, "very weak")]
+
+# Verdicts are keyed off the SAME bands, so the label and the sentence under
+# it can never disagree -- which they did, the first time this was written.
+VERDICTS = {
+    ("not credible", False): (
+        "**The numbers do not add up.** {f:,} followers against a recent "
+        "median of {m:,} plays is {p:.2f} plays per follower, with engagement "
+        "at {e:.1%} of plays. Both signals are low together, which is the "
+        "shape of a follower count that no longer describes a live audience. "
+        "Study the reels if you like — but do not treat the follower number "
+        "as evidence that any of this worked."),
+    ("not credible", True): (
+        "**Big list, small reach — but a live core.** {p:.2f} plays per "
+        "follower is very low, while engagement runs {e:.1%} of plays. The "
+        "list is mostly dormant; the people who do watch are real. Learn from "
+        "the reels, not from the follower count."),
+    ("thin", False): (
+        "**Reach is thin against the list.** {p:.2f} plays per follower and "
+        "engagement at {e:.1%} of plays. Not obviously inflated, but the "
+        "follower number is flattering what the reels actually do."),
+    ("thin", True): (
+        "**Thin reach, strong engagement.** {p:.2f} plays per follower, but "
+        "{e:.1%} of viewers react. A smaller audience than the headline "
+        "number, and a better one."),
+    ("healthy", False): (
+        "**Consistent with the audience size.** {p:.2f} plays per follower, "
+        "engagement {e:.1%} of plays. Nothing suggests the follower number is "
+        "misleading."),
+    ("healthy", True): (
+        "**Healthy on both counts.** {p:.2f} plays per follower and {e:.1%} "
+        "engagement. The audience is real and it is watching."),
+    ("strong", False): (
+        "**Reach exceeds the follower base.** A median reel does {p:.2f}x "
+        "their follower count. They are winning distribution rather than "
+        "serving an existing audience — which is the case worth studying."),
+    ("strong", True): (
+        "**Reach exceeds the follower base, and it converts.** {p:.2f}x their "
+        "follower count per reel at {e:.1%} engagement. This is what you came "
+        "to learn from."),
+}
+
+
+def band(value, bands):
+    for floor, *rest in bands:
+        if value >= floor:
+            return rest
+    return list(bands[-1][1:])
+
+
+def health(reels, prof, days=90):
+    """Do the views match the audience?
+
+    The first question to ask of anyone you are about to learn from, and the
+    one the rest of this file cannot answer: a million followers and twenty
+    thousand views is not a creator to study.
+
+    Followers is a single number describing today. Comparing it against a
+    median taken over three years of reels would punish every account that has
+    grown, so the comparison is made against RECENT reels only -- and when
+    there are too few of those, against the newest 25 whatever their age.
+
+    Two signals, and both are needed. Low reach with healthy engagement is a
+    large dormant list with a real core. Low reach with low engagement is an
+    audience that is not there."""
+    followers = prof.get("followers")
+    played = [p for p in reels if p.get("play_count") and p.get("taken_at")]
+    if not played:
+        return None
+    played.sort(key=lambda p: -p["taken_at"])
+    cut = played[0]["taken_at"] - days * 86400
+    recent = [p for p in played if p["taken_at"] >= cut]
+    basis = f"last {days} days"
+    if len(recent) < 8:
+        recent, basis = played[:25], "newest 25 reels"
+
+    plays = [p["play_count"] for p in recent]
+    total, med = sum(plays), st.median(plays)
+    eng = sum((p.get("like_count") or 0) + (p.get("comment_count") or 0)
+              for p in recent)
+    eng_rate = eng / total if total else None
+    out = {
+        "basis": basis, "reels": len(recent), "median_plays": int(med),
+        "engagement_rate": round(eng_rate, 4) if eng_rate is not None else None,
+        "engagement_band": band(eng_rate, ENG_BANDS)[0]
+        if eng_rate is not None else None,
+        "followers": followers, "plays_per_follower": None,
+        "reach_band": None, "reach_note": None, "verdict": None,
+    }
+    if not followers:
+        return out
+    ppf = med / followers
+    label, note = band(ppf, PPF_BANDS)
+    strong_eng = (eng_rate or 0) >= 0.02
+    out.update({
+        "plays_per_follower": round(ppf, 3),
+        "reach_band": label, "reach_note": note,
+        "verdict": VERDICTS[(label, strong_eng)].format(
+            f=followers, m=int(med), p=ppf, e=eng_rate or 0),
+    })
+    return out
+
+
 def cadence(posts):
     """Posts per month over the reachable catalogue."""
     by = Counter(quarter(p.get("taken_at")) for p in posts if p.get("taken_at"))
@@ -244,6 +367,7 @@ def build(handle):
         },
         "reach": reach,
         "spread": spread(reels),
+        "health": health(reels, prof),
         "trajectory": trajectory(reels),
         "duration": durations(reels),
         "content": content_mix(posts),
@@ -303,15 +427,48 @@ def markdown(d):
               f"| top decile | {r['p90_plays']:,} |",
               f"| best / worst | {r['best_plays']:,} / {r['worst_plays']:,} |",
               f"| engagement | {r['engagement_pct_of_plays']}% of plays "
-              "(likes + comments) |",
-              f"| median plays per follower | {r['plays_per_follower']} |"
-              if r.get("plays_per_follower") else "", "",
-              "<sub>Engagement is measured against plays, not followers. "
-              "Followers is a single snapshot taken today and would misprice "
-              "every older reel.</sub>", ""]
+              "(likes + comments) |", "",
+              "<sub>Lifetime figures over every reachable reel. Engagement is "
+              "measured against plays, not followers — followers is a single "
+              "snapshot taken today and would misprice every older reel. "
+              "Reach against the audience is judged in the next section, "
+              "where it is compared against recent reels only.</sub>", ""]
     else:
         L += ["No play counts — the clips pass returned nothing for this "
               "account.", ""]
+
+    hh = d.get("health")
+    if hh:
+        L += ["## Does the audience match the views?", "",
+              "The first question to ask of anyone you are about to learn "
+              "from. A million followers and twenty thousand views is not a "
+              "creator to study — it is a follower count that stopped meaning "
+              "anything.", ""]
+        rows = [f"| basis | {hh['reels']} reels, {hh['basis']} |",
+                f"| median plays | {hh['median_plays']:,} |",
+                f"| followers | {hh['followers']:,} |" if hh["followers"]
+                else "| followers | _unavailable_ |",
+                f"| plays per follower | **{hh['plays_per_follower']}** — "
+                f"{hh['reach_band']} |" if hh["plays_per_follower"] else None,
+                f"| engagement | {hh['engagement_rate']:.2%} of plays — "
+                f"{hh['engagement_band']} |" if hh["engagement_rate"] is not None
+                else None]
+        L += ["| | |", "|---|---|"] + [r for r in rows if r] + [""]
+        if hh["verdict"]:
+            L += [hh["verdict"], ""]
+            if hh["reach_note"]:
+                L += [f"<sub>{hh['reach_note']}</sub>", ""]
+        else:
+            L += ["> [!NOTE]",
+                  "> **No follower count**, so reach cannot be judged. The "
+                  "engagement rate above is measured against plays and is "
+                  "unaffected. Retry with `--refresh` once the profile "
+                  "endpoint answers.", ""]
+        L += ["<sub>Followers is one number describing today, so it is "
+              "compared against recent reels only — an older median would "
+              "punish every account that has grown. The bands are rules of "
+              "thumb, not measurements; the two signals read together are the "
+              "part to trust.</sub>", ""]
 
     s = d["spread"]
     L += ["## Is there anything to learn here?", ""]
@@ -418,6 +575,8 @@ def markdown(d):
                         for x in n if x.get("handle")), ""]
 
     L += ["## Next", "",
+          f"- `data/{h}/topics.md` — which subjects beat their own baseline",
+          f"- `data/{h}/hooks.md` — how the winners open, and whether it matters",
           f"- `./framezero run <project> --only {h}` — transcribe the winners "
           "and controls, and find what separates them",
           f"- `./framezero voice {h}` — measure how they sound",
@@ -428,24 +587,58 @@ def markdown(d):
 
 CSV_COLS = ["code", "url", "taken_at_iso", "is_reel", "product_type",
             "play_count", "like_count", "comment_count", "duration",
+            "hook", "topics", "hook_shapes",
             "paid_partnership", "sponsors", "location", "audio_type",
             "caption"]
+
+
+def annotations(handle):
+    """Fold in whatever topics.py and hooks.py found, if they have run.
+
+    He asked for the hooks in their own column of the spreadsheet. This is
+    where they land -- one row per post, opens in Excel, no dependency."""
+    d = ROOT / "data" / handle
+    topics, hooks, shapes = defaultdict(list), {}, {}
+    tf = d / "topics.json"
+    if tf.exists():
+        t = json.loads(tf.read_text())
+        for lens, items in (t.get("lenses") or {}).items():
+            for name, v in items.items():
+                # Only what survived. A column listing every candidate term
+                # would be noise wearing the costume of data.
+                if v.get("verdict") in ("overperforms", "underperforms"):
+                    for c in v.get("codes") or []:
+                        topics[c].append(name)
+    hf = d / "hooks.json"
+    if hf.exists():
+        hk = json.loads(hf.read_text())
+        for r in ((hk.get("spoken") or {}).get("reels") or []):
+            hooks[r["code"]] = r["hook"]
+            shapes[r["code"]] = r["archetypes"]
+        for r in ((hk.get("written") or {}).get("openers") or []):
+            hooks.setdefault(r["code"], r.get("opener") or "")
+            shapes.setdefault(r["code"], r.get("archetypes") or [])
+    return topics, hooks, shapes
 
 
 def write_csv(handle, path):
     """He asked for a spreadsheet. CSV is the version of that which needs no
     dependency and which an agent can also read."""
     idx = load(handle)
+    topics, hooks, shapes = annotations(handle)
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(CSV_COLS)
         for p in idx.get("posts") or []:
             d = when(p.get("taken_at"))
+            code = p.get("code")
             w.writerow([
-                p.get("code"), p.get("url"),
+                code, p.get("url"),
                 d.strftime("%Y-%m-%d %H:%M") if d else "",
                 p.get("is_reel"), p.get("product_type"), p.get("play_count"),
                 p.get("like_count"), p.get("comment_count"), p.get("duration"),
+                hooks.get(code, ""), ";".join(topics.get(code) or []),
+                ";".join(shapes.get(code) or []),
                 p.get("paid_partnership"), ";".join(p.get("sponsors") or []),
                 p.get("location"), (p.get("audio") or {}).get("type"),
                 (p.get("caption") or "").replace("\n", " ")[:500],

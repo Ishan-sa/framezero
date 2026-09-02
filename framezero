@@ -4,6 +4,8 @@
   ./framezero new  <project> --niche "..." --mode informational=a,b --mode funny=c
   ./framezero run  <project> [--mode M] [--only handle] [--top N] [--bottom N]
   ./framezero profile <handle>               full dossier: who they are, what they post
+  ./framezero topics  <handle> [--define f]  which SUBJECTS beat their own baseline
+  ./framezero hooks   <handle> [--define f]  how they open, and whether it matters
   ./framezero voice <handle> [--project P]   derive a creator's voice fingerprint
   ./framezero check <script> --like <handle>  score a draft against that voice
   ./framezero show <project>
@@ -60,8 +62,17 @@ def run(a):
         sh("listen.py", h, "--project", a.project)
         sh("corpus.py", h)
         sh("report.py", h, "--project", a.project)
-        # Free: it reads the index that is already on disk and makes no
-        # requests of its own.
+        # These three read the index already on disk and make no requests of
+        # their own. profile.py runs last because posts.csv folds in whatever
+        # topics and hooks found.
+        topics = ["topics.py", h]
+        hooks = ["hooks.py", h]
+        if cfg.get("topic_spec"):
+            topics += ["--define", ROOT / cfg["topic_spec"]]
+        if cfg.get("hook_spec"):
+            hooks += ["--define", ROOT / cfg["hook_spec"]]
+        sh(*topics)
+        sh(*hooks)
         sh("profile.py", h)
 
     # The niche lexicon is derived from scraped captions, so it can only be
@@ -85,6 +96,8 @@ Done. Hand these to your agent:
 
   data/_projects/{a.project}/<mode>.md   which findings REPLICATE (read first)
   data/<handle>/profile.md               who the creator is, what they post, how they earn
+  data/<handle>/topics.md                which SUBJECTS beat their own baseline
+  data/<handle>/hooks.md                 how the winners open — the transferable part
   data/<handle>/report.md                per-creator countable deltas — structure
   data/<handle>/voice.md                 how that creator SOUNDS — dials + exemplars
   data/<handle>/corpus.md                the transcripts themselves
@@ -114,6 +127,24 @@ if __name__ == "__main__":
     p.add_argument("handle")
     p.add_argument("--refresh", action="store_true",
                    help="re-pull the index even if one is already on disk")
+    p.add_argument("--topics", help="topic spec passed to the topics stage")
+    p.add_argument("--hooks", help="hook archetype spec passed to the hooks stage")
+
+    t = sub.add_parser("topics",
+                       help="which subjects beat this creator's own baseline")
+    t.add_argument("handle")
+    t.add_argument("--define", help="your own topics (.json or .txt)")
+    t.add_argument("--min-reels", type=int, default=6)
+    t.add_argument("--since")
+    t.add_argument("--q", type=float, default=0.10,
+                   help="false-discovery rate (default 0.10)")
+
+    hk = sub.add_parser("hooks", help="how they open, and whether it matters")
+    hk.add_argument("handle")
+    hk.add_argument("--define", help="your own hook archetypes (.json or .txt)")
+    hk.add_argument("--seconds", type=float, default=3.0)
+    hk.add_argument("--min-reels", type=int, default=6)
+    hk.add_argument("--since")
 
     v = sub.add_parser("voice", help="derive a creator's voice fingerprint")
     v.add_argument("handle"); v.add_argument("--project")
@@ -145,7 +176,21 @@ if __name__ == "__main__":
         # user run a separate stage first.
         if not idx.exists() and not sh("scrape.py", h):
             sys.exit(f"scrape failed for @{h}")
-        sys.exit(0 if sh("profile.py", h) else 1)
+        # All three read the same index and make no requests. Together they
+        # are the whole-account answer: who they are, what works, how they
+        # open it. profile.py runs last so posts.csv can fold in the rest.
+        topics = ["topics.py", h] + (["--define", a.topics] if a.topics else [])
+        hooks = ["hooks.py", h] + (["--define", a.hooks] if a.hooks else [])
+        ok = sh(*topics)
+        ok = sh(*hooks) and ok
+        sys.exit(0 if sh("profile.py", h) and ok else 1)
+    elif a.cmd in ("topics", "hooks"):
+        args = [f"{a.cmd}.py", a.handle.lstrip("@")]
+        for flag in ("define", "since", "seconds", "q"):
+            if getattr(a, flag, None) is not None:
+                args += [f"--{flag}", getattr(a, flag)]
+        args += ["--min-reels", a.min_reels]
+        sys.exit(0 if sh(*args) else 1)
     elif a.cmd == "voice":
         args = ["voice.py", "profile", a.handle]
         if a.project:

@@ -121,6 +121,29 @@ def compile_set(pairs):
     return [(n, d, re.compile(p, re.I)) for n, d, p in pairs]
 
 
+def split_patterns(s):
+    """Split a spec line on commas -- but not the commas inside a regex.
+
+    `\\d{1,3}` and `[a-z]{2,14}` and `(?:a,b)` all contain commas that belong to
+    the pattern. Splitting on every comma cuts them in half, and the halves
+    still compile: `\\d{1` is a valid regex that matches a digit followed by a
+    brace. So the failure is silent, and the archetype quietly matches nothing
+    it was meant to. Track bracket depth instead."""
+    out, buf, depth = [], [], 0
+    for ch in s:
+        if ch in "{[(":
+            depth += 1
+        elif ch in "}])":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            out.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    out.append("".join(buf))
+    return [x.strip() for x in out if x.strip()]
+
+
 def read_spec(path):
     """Your own archetypes.
 
@@ -129,7 +152,15 @@ def read_spec(path):
     or plain text, one per line:  name: phrase, phrase, re:pattern
 
     A bare entry is matched as a phrase with word boundaries. Prefix it with
-    `re:` when you mean a real regular expression."""
+    `re:` when you mean a real regular expression.
+
+    In the text form the name may carry the shape\'s job after a pipe:
+
+        name | what it does to the viewer: phrase, re:pattern
+
+    That sentence becomes the last column of the table in hooks.md, which is
+    the column a writer actually reads. Without it the column is blank and the
+    reader is left to infer the point of the shape from its name."""
     p = pathlib.Path(path)
     if not p.exists():
         sys.exit(f"no hook spec at {path}")
@@ -146,7 +177,8 @@ def read_spec(path):
             if not line or line.startswith("#") or ":" not in line:
                 continue
             name, kws = line.split(":", 1)
-            raw[name.strip()] = ("", [k.strip() for k in kws.split(",") if k.strip()])
+            name, _, about = name.partition("|")
+            raw[name.strip()] = (about.strip(), split_patterns(kws))
     out = []
     for name, (about, pats) in raw.items():
         if not pats:

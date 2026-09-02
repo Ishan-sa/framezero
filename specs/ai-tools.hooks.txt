@@ -1,0 +1,107 @@
+# Hook archetype spec — AI tools, automation and creator-economy content
+#
+# Pass with:  ./framezero hooks <handle> --define specs/ai-tools.hooks.txt
+# or set "hook_spec" in your project file to apply it to every creator.
+#
+# One archetype per line:
+#     name: pattern, pattern, pattern
+#     name | what it does to the viewer: pattern, pattern
+#
+# A bare pattern is matched as a phrase with word boundaries. Prefix with `re:`
+# for a real regular expression. The sentence after the pipe becomes the last
+# column of the table in hooks.md — write it, because that column is the one a
+# writer actually reads.
+#
+# Patterns are separated by commas, so a comma you want the regex to MATCH has
+# to be hidden from the separator: write it as [,] rather than a bare comma.
+# Commas inside {2,14} and [a-z,] are already safe — the parser tracks bracket
+# depth — but a bare top-level comma is indistinguishable from a separator and
+# will cut your pattern in half.
+#
+# --------------------------------------------------------------------------
+# WHY THIS FILE EXISTS
+#
+# The built-in archetypes were written from software-news openings: "just
+# launched", "completely free", "you can now". Run them against a creator who
+# does that and every opening matches. Run them against a creator who opens on
+# camera, in an interview, or by talking straight at you, and almost nothing
+# does — one account in this niche had 22 of 30 openings match no shape at all,
+# while another had 0 of 24 unmatched. Same niche, same week. The built-ins were
+# not wrong; they were incomplete.
+#
+# So this file keeps the built-in shapes that earn their place and adds the
+# spoken/personal ones they miss.
+#
+# --------------------------------------------------------------------------
+# THE ANTI-PATTERNS ARE THE POINT
+#
+# Four shapes below are here because they LOSE, not because they win: intrigue,
+# opinion, rant, and stat claim. In the catalogue that motivated this file they
+# appeared in the low-performing cohort and never once in the high-performing
+# one.
+#
+# That is worth more than another winning shape. A writer with a list of hooks
+# to try will try them; a writer with a list of hooks to avoid stops making the
+# mistake. Leave these in even when they never fire — an archetype that reports
+# zero is an answer, and a shape that reports a low median outlier is the most
+# actionable row in the file.
+# --------------------------------------------------------------------------
+
+
+# ---- spoken and on-camera shapes: what the built-ins miss -----------------
+
+interview | a second voice puts the creator on the spot, so the viewer arrives mid-exchange instead of mid-monologue: re:^\W*(?:okay|ok|so|alright|right)[,]?\s+[a-z]{2,14}[,]\s, re:^\W*[a-z]{2,14}[,]\s+(?:tell|explain|show|give|what|why|how|who|when|where|which|do|does|can|could|would|should|is|are|no|don'?t)\b, re:\btell\s+me\s+something\b, re:^\W*[a-z]{2,14}[,]\s+how\s+(?:many|much)\b
+
+self-intro | names themselves before anything else, which only works when the face is the draw: re:^\W*(?:hi|hey|hello|yo)[,!.]?\s+(?:i'?m|i\s+am|my\s+name)\b, re:^\W*(?:i'?m|i\s+am)\s+[a-z]{2,14}\s*[.,!]
+
+direct address | one word straight at the camera, no setup at all — it works by refusing to earn attention and assuming it: re:^\W*(?:hey|hi|hello|yo|listen|look|okay|ok)\s*[.,!?…]*\s*$, re:^\W*(?:hi|hey|hello)[,!.]?\s+\w{2,12}\s*[.!?]\s*$
+
+scenario | drops the viewer into a situation in the second person, so the reel is about them before it is about the tool: re:^\W*you\s+(?:have|got|are|just|run|own|work)\b, re:^\W*(?:imagine|say|let'?s\s+say|suppose)\s+you\b, re:^\W*(?:your|you'?re\s+the)\s+\w+\s+(?:is|has|just)\b
+
+experiment | announces a test whose result the creator does not yet promise, which is a cheap way to buy a whole reel of suspense: re:\bwhat\s+happens\s+(?:when|if)\b, re:^\W*(?:so\s+)?i\s+(?:gave|asked|told|made|let|forced|handed)\s+(?:ai|chatgpt|claude|gemini|grok|it|this|the)\b, re:^\W*i\s+(?:spent|tested|tried|ran)\s+\d, re:\bfor\s+(?:7|seven|30|thirty|100|a\s+hundred)\s+days\b
+
+personal stakes | opens on the creator's own life rather than the subject, and buys the right to be listened to before the subject arrives: re:^\W*at\s+\d{2}\b, re:\bi'?ve\s+(?:already\s+)?(?:lived|survived|quit|lost|walked\s+away)\b, re:\b(?:two|three|four)\s+(?:completely\s+)?different\s+lives\b, re:^\W*(?:a|one)\s+(?:year|month|week)\s+ago\s+i\b
+
+
+# ---- shapes that LOSE: keep them so the writer can be told to stop --------
+
+intrigue | gestures at a secret without naming it, so the viewer is asked to be curious about nothing in particular: re:\bsomething\s+(?:unexpected|strange|weird|big|wild)\s+is\s+happening\b, re:^\W*here'?s\s+(?:a|the)\s+(?:frame|thought|idea|thing)\b, re:\byou\s+know\s+what\s+(?:usually\s+|always\s+)?happens\b, re:\bthe\s+same\s+mistake\b, re:\bsomething\s+is\s+happening\b
+
+opinion | leads with the creator's take rather than the thing itself, which asks for agreement before giving a reason: re:^\W*i\s+think\b, re:\bbut\s+i\s+think\s+(?:we|you|everyone)\b, re:\bin\s+my\s+opinion\b, re:\bhonestly[,]?\s+i\b, re:\beveryone'?s\s+(?:arguing|debating|fighting|talking)\s+about\b
+
+rant | opens on the creator's irritation, which is a feeling the viewer has not agreed to share yet: re:\bthe\s+last\s+time\s+i\s+see\b, re:^\W*(?:yet\s+)?another\s+\w+\s+(?:post|video|thread|hack)\b, re:\bi'?m\s+(?:so\s+)?(?:tired|sick|done)\s+(?:of|with)\b, re:\bcan\s+we\s+(?:please\s+)?stop\b
+
+stat claim | opens on a percentage about people rather than a count of things — it sounds like evidence and lands like a lecture: re:^\W*\d{1,3}\s*%\s+of\b, re:^\W*\d{1,3}\s*%\s+of\s+(?:people|you|us|creators|founders)\b
+
+
+# ---- the built-ins, carried forward --------------------------------------
+# These are copied from bin/hooks.py because --define REPLACES the built-in set
+# rather than extending it. Drop any line here that your niche never uses.
+
+number/list | opens on a count — the viewer knows how long this will take: re:^\W*(?:here\s+are\s+)?\d{1,3}\b(?!\s*(?:%|percent|k\b|million|billion|dollars?|\$)), re:\b(?:top|these)\s+\d{1,3}\b, re:\b\d{1,3}\s+(?:ways?|tools?|tips?|things?|reasons?|steps?|prompts?|apps?|sites?|hacks?)\b
+
+news | something just happened — borrows urgency from the event: re:\bjust\s+(?:launched|dropped|released|announced|shipped|went|made|built|got|added|leaked|open[\s-]?sourced)\b, re:\b(?:breaking|finally|it'?s\s+here|is\s+now\s+(?:live|free|open))\b, re:\b(?:recently|silently|quietly)\s+(?:launched|released|dropped|shipped|added|built)\b, re:\b(?:leaked|unveiled)\b, re:\banother\s+(?:new\s+)?ai\b
+
+contrarian | contradicts what the viewer believes — the cheapest way to stop a scroll: re:^\W*(?:stop|don'?t|never|forget|nobody|no\s+one|everyone(?:'?s)?\s+(?:is\s+)?wrong)\b, re:\byou'?re\s+(?:doing|using|building)\b.{0,24}\bwrong\b, re:\b(?:actually|but)\s+(?:nobody|no\s+one)\b, re:\bis\s+(?:dead|over|a\s+lie)\b, re:\byou\s+(?:don'?t|do\s+not)\s+need\b, re:\bstop\s+(?:using|paying|buying|wasting)\b, re:\bdidn'?t\s+just\b, re:\banymore\b, re:\bno\s+longer\b, re:\bwhile\s+(?:everyone|everybody|the\s+rest)\b
+
+curiosity gap | names a thing it refuses to explain yet: re:\b(?:nobody|no\s+one)\s+(?:is\s+)?(?:talk|talking|tells?|telling|know|knows)\b, re:\bthe\s+(?:secret|trick|catch|real\s+reason)\b, re:\bwhat\s+(?:nobody|no\s+one)\b, re:\byou'?ve\s+never\s+(?:seen|heard)\b
+
+free | removes the price objection before it is raised: re:\b(?:completely|totally|100%|entirely)?\s*free\b, re:\bfor\s+\$?0\b, re:\bwithout\s+paying\b, re:\bno\s+credit\s+card\b
+
+capability | states a new thing the viewer can now do: re:\byou\s+can\s+now\b, re:\byou\s+can\s+(?:finally|literally|actually)\b, re:\bnow\s+you\s+can\b, re:\blets?\s+you\b, re:\ballows?\s+you\s+to\b, re:\bturns?\s+(?:your|any)\b.{0,30}\binto\b
+
+warning/loss | frames inaction as the expensive option: re:\b(?:before\s+it'?s\s+too\s+late|you'?re\s+losing|costing\s+you|biggest\s+mistake|will\s+replace|about\s+to\s+(?:replace|kill|end)|if\s+you'?re\s+still)\b
+
+proof/credential | leads with a result or an earned right to speak: re:\bi'?(?:ve)?\s+(?:made|built|spent|earned|grown|generated|tested|tried|found)\b, re:\b\$\d, re:\b(?:after|in\s+the\s+last)\s+\d+\s+(?:years?|months?|days?|weeks?)\b, re:\b\d+[km]?\+?\s+(?:clients?|followers?|users?|students?|subscribers?)\b
+
+comparison | pits two named things against each other: re:\bvs\.?\b, re:\bversus\b, re:\bbetter\s+than\b, re:\bcompared\s+to\b, re:\binstead\s+of\b, re:\breplaced?\s+my\b
+
+demo | promises to show rather than tell: re:\b(?:let\s+me\s+show|i'?(?:ll|m\s+going\s+to|m\s+about\s+to)\s+show|watch\s+(?:this|me)|here'?s\s+how|this\s+is\s+how|check\s+this\s+out)\b
+
+problem | names something broken before offering the fix: re:\bstruggles?\s+with\b, re:\bthe\s+problem\s+with\b, re:\bis\s+(?:broken|useless|garbage)\b, re:\bfalls?\s+apart\b, re:\bbut\s+it\s+(?:usually|always|still|never)\b, re:\bdoesn'?t\s+(?:actually\s+)?work\b, re:\bkeeps?\s+(?:failing|breaking)\b
+
+speed | puts a clock on the payoff: re:\bin\s+(?:under\s+)?\d+\s*(?:seconds?|secs?|minutes?|mins?|hours?|days?)\b, re:\b(?:instantly|in\s+one\s+click|in\s+seconds)\b
+
+question | opens by asking, and owes an answer: re:^\W*(?:what|why|how|who|when|where|which|do|does|did|can|could|would|should|is|are|have|has|ever)\b[^.!?]*\?, re:^\W*(?:ever\s+wonder|what\s+if)\b
+
+superlative | claims a maximum — best, only, first: re:\bthe\s+(?:best|only|first|fastest|smartest|craziest|most\s+\w+)\b, re:\bnothing\s+else\b

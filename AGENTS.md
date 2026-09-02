@@ -402,6 +402,10 @@ The two `_projects` files come first for the same reason: they are the only
 files in the tree that have been checked against a second creator. Everything
 under `data/<handle>/` is one account's habits until proven otherwise.
 
+`data/_neighbours.md` sits outside this order on purpose — it is read *before*
+you have a creator, not after, and it answers a different question from
+everything above.
+
 Then emit one skill **per mode** (not per creator) into `out/skills/`, plus a
 separate voice layer. Structure and voice stay in separate files on purpose:
 copying structure is learning a craft, copying voice makes a knockoff of someone
@@ -502,6 +506,7 @@ Before you tell the user you are finished:
 - [ ] you told the user which creators failed the audience-health check, if any
 - [ ] nothing the tool called `inconclusive` was reported to the user as a finding
 - [ ] `out/skills/` has one skill per mode, plus a voice layer
+- [ ] you ran `python3 bin/install_skills.py` (or told the user why you did not)
 - [ ] every rule in a skill traces to a REPLICATED finding; bets are labelled as bets
 - [ ] any sample script you wrote passes `./framezero check` at the user's own wpm
 - [ ] `git status` is clean of `data/`, `out/`, and real `projects/*.json`

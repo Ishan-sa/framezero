@@ -830,6 +830,21 @@ other explicitly or the agent picks between them at random.
 Swipe files quote real transcripts, so they stay local and out of git along with
 everything else under `data/`.
 
+Have your agent write them to `out/skills/`, then install:
+
+```bash
+python3 bin/install_skills.py --dry-run   # see what would land where
+python3 bin/install_skills.py
+python3 bin/install_skills.py --uninstall
+```
+
+That is nearly a job for `cp`, with one exception that matters. Every skill ends
+with a mandatory check loop written `./framezero check draft.txt`, which is
+correct in the repo and meaningless anywhere else — and nobody drafts a reel
+while sitting in the repo. The command would fail, the agent would shrug, and
+the one step that keeps a draft honest would quietly stop running. The installed
+copy gets the absolute path baked in; the source keeps the relative one.
+
 Before that, per creator and per project, on disk:
 
 ```

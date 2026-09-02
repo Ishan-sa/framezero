@@ -478,6 +478,7 @@ bin/topics.py          which subjects beat the baseline, FDR-corrected
 bin/hooks.py           spoken + written hook archetypes, per creator
 bin/replicate.py       subjects and hooks that hold up across creators
 bin/neighbours.py      who else in the niche is worth studying, from co-tags
+bin/install_skills.py  out/skills -> ~/.claude/skills, absolute check-loop path
 bin/voice.py           16 voice dials, signature phrases, draft scoring
 bin/mcp_server.py      the same pipeline as MCP tools, over stdio
 bin/aggregate.py       pools creators, assigns replication verdicts

@@ -6,6 +6,7 @@
   ./framezero profile <handle>               full dossier: who they are, what they post
   ./framezero topics  <handle> [--define f]  which SUBJECTS beat their own baseline
   ./framezero hooks   <handle> [--define f]  how they open, and whether it matters
+  ./framezero signals <project> [--mode M]   which subjects and hooks REPLICATE
   ./framezero voice <handle> [--project P]   derive a creator's voice fingerprint
   ./framezero check <script> --like <handle>  score a draft against that voice
   ./framezero show <project>
@@ -90,11 +91,15 @@ def run(a):
     for mode in ([a.mode] if a.mode else list(cfg["modes"])):
         head(f"cross-creator: {mode}")
         sh("aggregate.py", a.project, mode)
+        # Same argument as aggregate.py, applied to subject matter and hooks
+        # rather than to structure.
+        sh("replicate.py", a.project, "--mode", mode)
 
     print(f"""
 Done. Hand these to your agent:
 
-  data/_projects/{a.project}/<mode>.md   which findings REPLICATE (read first)
+  data/_projects/{a.project}/<mode>.md   which STRUCTURE findings replicate (read first)
+  data/_projects/{a.project}/signals-<mode>.md  which SUBJECTS and HOOKS replicate
   data/<handle>/profile.md               who the creator is, what they post, how they earn
   data/<handle>/topics.md                which SUBJECTS beat their own baseline
   data/<handle>/hooks.md                 how the winners open — the transferable part
@@ -138,6 +143,13 @@ if __name__ == "__main__":
     t.add_argument("--since")
     t.add_argument("--q", type=float, default=0.10,
                    help="false-discovery rate (default 0.10)")
+
+    sg = sub.add_parser("signals",
+                        help="which subjects and hooks replicate across creators")
+    sg.add_argument("project")
+    sg.add_argument("--mode", help="only creators studied for this mode")
+    sg.add_argument("--handles", help="compare these handles instead, comma "
+                                      "separated — no project edit needed")
 
     hk = sub.add_parser("hooks", help="how they open, and whether it matters")
     hk.add_argument("handle")
@@ -184,6 +196,12 @@ if __name__ == "__main__":
         ok = sh(*topics)
         ok = sh(*hooks) and ok
         sys.exit(0 if sh("profile.py", h) and ok else 1)
+    elif a.cmd == "signals":
+        args = ["replicate.py", a.project]
+        for flag in ("mode", "handles"):
+            if getattr(a, flag, None):
+                args += [f"--{flag}", getattr(a, flag)]
+        sys.exit(0 if sh(*args) else 1)
     elif a.cmd in ("topics", "hooks"):
         args = [f"{a.cmd}.py", a.handle.lstrip("@")]
         for flag in ("define", "since", "seconds", "q"):

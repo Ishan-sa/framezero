@@ -15,13 +15,15 @@
 
 <p>
 Point it at a public handle. It pulls every reel with real play counts, scores each one<br>
-against that creator's own baseline, transcribes the outliers locally, measures what<br>
-separates the winners from the flops, and hands your AI agent a skill that writes like them.
+against that creator's own baseline, and tells you which <b>subjects</b> beat that baseline,<br>
+how the winners <b>open</b>, and whether the follower count and the view count even agree.<br>
+Then it transcribes the outliers locally and hands your agent a skill that writes like them.
 </p>
 
 <p>
   <b><a href="#-quickstart">Quickstart</a></b> ·
   <b><a href="#-profile-any-creator-in-a-minute">Profile a creator</a></b> ·
+  <b><a href="#-what-to-make-and-how-to-open-it">Topics &amp; hooks</a></b> ·
   <b><a href="#-what-616-reels-actually-showed">The findings</a></b> ·
   <b><a href="#-sounding-like-them">Voice</a></b> ·
   <b><a href="AGENTS.md">For AI assistants</a></b> ·
@@ -45,7 +47,7 @@ structure. The ones claiming to do both and "write in your competitor's voice"
 are, on inspection, generic models over a generic viral corpus. The output is not
 grounded in that specific creator's transcripts at all.
 
-framezero does the grounding. Three things follow from that, and no other tool
+framezero does the grounding. Four things follow from that, and no other tool
 does any of them:
 
 <table>
@@ -87,6 +89,25 @@ fail and fix.
 </tr>
 </table>
 
+### 🚫 And the point of all of it: mechanics, not scripts
+
+**Copying someone's scripts makes you a knock-off of an account that already has
+the audience.** So the tool is built to separate what transfers from what does
+not — and to refuse to hand you the second column.
+
+| Transfers | Doesn't |
+|---|---|
+| The **shape** of a hook | The exact hook words |
+| Which **subjects** beat their baseline | Their face, their story, their followers |
+| Structure, pacing, CTA placement | Their captions, verbatim |
+| Whether their audience is even real | Their voice, pasted into your mouth |
+
+Which is why voice is stored as **bands rather than sentences**, why a finding
+needs a **second creator** before it becomes a rule, and why every mined topic
+is held to a **false-discovery correction** before it is allowed to be called a
+finding at all. On one real account the uncorrected version confidently reported
+a subject at 10× baseline. It was noise. Four of 132 survived.
+
 ---
 
 ## 🔎 Profile any creator in a minute
@@ -97,8 +118,10 @@ Before you spend an hour transcribing anyone, find out who they are.
 ./framezero profile <handle>
 ```
 
-One scrape, no whisper, about sixty seconds. Writes `profile.md`, `profile.json`
-and `posts.csv` (opens straight in Excel or Sheets).
+One scrape, no whisper, about sixty seconds. That single command runs three
+free stages and writes six files — `profile.md`, `topics.md`, `hooks.md`, their
+JSON twins, and `posts.csv`, which opens straight in Excel or Sheets with `hook`,
+`topics` and `hook_shapes` as their own columns.
 
 <table>
 <tr><td width="50%" valign="top">
@@ -125,7 +148,29 @@ to "who else should I study?"
 </td></tr>
 </table>
 
-And the section that decides whether to bother at all:
+### Two gates before you spend an hour
+
+**Does the audience match the views?** The first thing to ask about anyone you
+are about to learn from — and a ratio nothing else in the tool could judge.
+
+```
+| plays per follower | 0.02 — not credible |
+| engagement         | 1.70% of plays — weak |
+
+**The numbers do not add up.** 1,000,000 followers against a recent median of
+20,000 plays is 0.02 plays per follower, with engagement at 1.7% of plays. Both
+signals are low together, which is the shape of a follower count that no longer
+describes a live audience. Study the reels if you like — but do not treat the
+follower number as evidence that any of this worked.
+```
+
+Two signals, and both are needed: low reach with healthy engagement is a big
+dormant list with a real core, low reach with low engagement is an audience that
+is not there. Compared against **recent** reels only, because followers is one
+number describing today and an all-time median would punish every account that
+has grown.
+
+**And the one that decides whether the winners are doing anything different:**
 
 ```
 ## Is there anything to learn here?
@@ -151,6 +196,116 @@ dossier tells you so for the price of one scrape.
 
 ---
 
+## 🪝 What to make, and how to open it
+
+Copying a creator's scripts makes you a knock-off of someone who already has the
+audience. The parts that actually **transfer** are narrower than that: which
+*subjects* beat their baseline, and the *shape* of how they open. Both are
+measured from data already on disk — no extra requests, no transcription.
+
+### Topics — what to make
+
+```bash
+./framezero topics <handle>
+./framezero topics <handle> --define specs/real-estate.topics.txt
+```
+
+A creator averaging 10,000 plays who reliably hits 50,000 on one subject has
+told you something you can act on tomorrow. `topics.md` opens with the brief:
+
+```
+1. **github** — 27 reels at 1.61× baseline, median 95,066 plays against
+   67,036 for the account. 59% of them beat their own neighbourhood.
+
+**And what costs them:**
+- **new cohort** — 13 reels at only 0.55× baseline, median 41,245 plays.
+```
+
+Three lenses — topics **you** declare, the creator's hashtags, and phrases mined
+from caption bodies — scored in outlier units against a ±90-day rolling median,
+so a subject cannot look good merely because they posted it while they were
+growing.
+
+> [!IMPORTANT]
+> **The statistics are the feature.** Testing six hundred mined terms against
+> one catalogue *guarantees* a few clear any fixed threshold by luck — on a real
+> account, the naive version reported a subject at **10× baseline** that did not
+> exist. Every topic now gets a Mann-Whitney rank-sum test against the rest of
+> the catalogue, and the whole family is held to a **Benjamini-Hochberg
+> false-discovery rate**. Of 132 topics tested on that account, four survived.
+> Anything that does not is reported as *inconclusive*, never as a finding.
+
+Two smaller guards that matter as much: a bare lowercase word is nearly always
+an adjective — *easy*, *complex*, *remove* — so **single words are kept only
+when the creator capitalises them mid-sentence**, which is the free test for a
+product, brand or place name. And topics covering the same reels collapse into
+one row, so eleven phrasings of one boilerplate caption stop crowding out the
+real findings.
+
+### Hooks — how to open it
+
+```bash
+./framezero hooks <handle>
+./framezero hooks <handle> --define specs/real-estate.hooks.txt
+```
+
+The hook is the single most transferable unit in a reel. Take the **shape**,
+never the sentence.
+
+```
+| | outlier | plays     | opening line                                    | shape |
+|---|--------:|----------:|-------------------------------------------------|-------|
+| W | 19.71× | 3,218,105 | You can now run <tool> for completely free       | free, capability |
+| W |  9.40× | 1,540,574 | Don't use <tool> unless you've installed these…  | contrarian |
+| C |  0.17× |    25,714 | A very nifty email hack that I'm about to show…  | demo |
+| C |  0.09× |     9,084 | <tool> just launched X and it's basically…       | news |
+```
+
+Two lenses, because the good data and the plentiful data are not the same data.
+The **spoken** hook comes from the transcripts — only the ~30 reels in the study
+set, and that set is *designed* to be the two tails, so it is tested with
+**Fisher's exact** on winners against controls rather than pretending to be a
+random sample. The **written** lens reads the first line of every caption in the
+catalogue, hundreds of them, free, and carries the same rank-sum and correction
+as topics.
+
+**Read the table before the statistics.** Thirty hooks you can see beat any test
+run on thirty rows, and the file says so.
+
+<sub>One real account led 388 of its 396 captions with `Comment "WORD" to get…`.
+Measured naively, its "hook" was its funnel. That clause is now stripped before
+matching and the share is reported.</sub>
+
+### And then — does it hold for anyone else?
+
+```bash
+./framezero signals <project> --mode informational
+./framezero signals <project> --handles handle_a,handle_b
+```
+
+A subject that works for one creator is that creator's territory. The same
+**REPLICATED / CONTESTED / SINGLE / DEAD** verdicts the structural pass uses,
+applied to subjects and hook shapes:
+
+```
+| topic  | verdict    | creators | @creator_a | @creator_b |
+|--------|------------|---------:|-----------:|-----------:|
+| github | REPLICATED |        2 |     1.61×  |     1.34×  |
+```
+
+Two independent accounts, each surviving its own correction, pointing the same
+way. That is the strongest claim this tool makes about anything — and it is the
+only class that should ever become a rule.
+
+> [!TIP]
+> **Hook shapes replicate more meaningfully than subjects do.** Every creator is
+> scored against the *same* archetype list, so those names line up by
+> construction. Two creators only share a topic name when they happen to use the
+> same word for the same thing — which is exactly why `--define` with a shared
+> spec is worth the ten minutes.
+
+---
+
 ## 🤖 Made to be driven by an assistant
 
 Nobody is going to use this raw. They are going to point Claude, Cursor or Codex
@@ -166,7 +321,10 @@ claude mcp add framezero -- python3 "$(pwd)/bin/mcp_server.py"
 |---|---|
 | `list_projects` | what already exists on disk |
 | `profile_creator` | the full dossier, scraping if needed |
-| `findings` | which features REPLICATED across creators |
+| `creator_topics` | which **subjects** beat their own baseline |
+| `creator_hooks` | how they **open**, and whether it separates winners |
+| `replicated_signals` | subjects and hooks that hold across creators |
+| `findings` | which structural features REPLICATED across creators |
 | `creator_report` | one creator's winner-vs-control deltas |
 | `voice_profile` | the 16 dials and signature phrases |
 | `check_script` | score a draft, before the user ever sees it |
@@ -235,7 +393,31 @@ crafts, so the pipeline keeps them apart.
 </details>
 
 <details open>
-<summary><b>3 · Run it</b></summary>
+<summary><b>3 · Look at them before you spend the hour</b></summary>
+
+<br>
+
+```bash
+./framezero profile creator_a          # ~60s each. No whisper, no hour.
+./framezero profile creator_b
+./framezero signals myproject --handles creator_a,creator_b
+```
+
+Three questions answered before you commit to anyone:
+
+- **Is the audience real?** `profile.md` reads plays-per-follower against
+  engagement, over recent reels only. If the numbers do not add up, it says so.
+- **Do their winners differ from their flops?** If the top decile sits near the
+  median, the expensive pass will find nothing.
+- **Does anything hold for both of them?** `signals` gives subjects and hook
+  shapes the REPLICATED / CONTESTED / SINGLE / DEAD treatment.
+
+Drop anyone who fails the first two. That is the whole point of this step.
+
+</details>
+
+<details open>
+<summary><b>4 · Run it</b></summary>
 
 <br>
 
@@ -261,18 +443,24 @@ Narrow it with `--mode funny`, `--only handle`, `--top 15 --bottom 15`.
 </details>
 
 <details open>
-<summary><b>4 · Hand the outputs to your agent</b></summary>
+<summary><b>5 · Hand the outputs to your agent</b></summary>
 
 <br>
 
 ```
-data/_projects/<project>/<mode>.md   ← START HERE — which findings REPLICATE
-data/<handle>/profile.md             ← who they are, what they post, how they earn
-data/<handle>/report.md              ← that creator's countable deltas (structure)
-data/<handle>/voice.md               ← how they SOUND — dials + signature phrases
-data/<handle>/corpus.md              ← the transcripts themselves (read LAST)
-prompts/extract.md, prompts/emit.md  ← how to turn all that into skills
+data/_projects/<p>/<mode>.md          ← START HERE — which STRUCTURE replicates
+data/_projects/<p>/signals-<mode>.md  ← which SUBJECTS and HOOK SHAPES replicate
+data/<handle>/profile.md              ← who they are, and is the audience real
+data/<handle>/topics.md               ← which subjects beat their own baseline
+data/<handle>/hooks.md                ← how the winners open — the transferable part
+data/<handle>/report.md               ← that creator's countable deltas (structure)
+data/<handle>/voice.md                ← how they SOUND — dials + signature phrases
+data/<handle>/corpus.md               ← the transcripts themselves (read LAST)
+prompts/extract.md, prompts/emit.md   ← how to turn all that into skills
 ```
+
+The two `_projects` files come first for a reason: they are the only files in
+the tree that have been checked against a second creator.
 
 Your agent writes one skill **per mode** into `out/skills/`. There is a whole
 file — [`AGENTS.md`](AGENTS.md) — written for it.
@@ -280,7 +468,7 @@ file — [`AGENTS.md`](AGENTS.md) — written for it.
 </details>
 
 <details open>
-<summary><b>5 · Check every draft before you record it</b></summary>
+<summary><b>6 · Check every draft before you record it</b></summary>
 
 <br>
 
@@ -450,11 +638,19 @@ flowchart LR
   C --> D["listen.py<br/><small>whisper.cpp, seeded</small>"]
   D --> E["corpus.py<br/><small>one markdown</small>"]
   E --> F["report.py<br/><small>countable deltas</small>"]
-  F --> P["profile.py<br/><small>account dossier</small>"]
+  F --> T["topics.py<br/><small>what to make</small>"]
+  T --> K["hooks.py<br/><small>how to open</small>"]
+  K --> P["profile.py<br/><small>account dossier</small>"]
   P --> G["voice.py<br/><small>16 dials</small>"]
-  G --> H["aggregate.py<br/><small>what replicates</small>"]
-  H --> I(["your agent<br/><small>writes the skill</small>"])
+  G --> H["aggregate.py<br/><small>structure replicates?</small>"]
+  H --> R["replicate.py<br/><small>subjects + hooks replicate?</small>"]
+  R --> I(["your agent<br/><small>writes the skill</small>"])
+  A -.->|no transcription needed| T
 ```
+
+`topics.py`, `hooks.py` and `profile.py` read the index the scrape already
+wrote, so the whole right-hand answer — what to make, how to open it, is the
+audience real — is available about a minute after you point it at a handle.
 
 Every stage writes to disk and reads the previous stage's output, so any stage
 reruns on its own. `scrape.py` resumes from whatever is already there.
@@ -466,7 +662,10 @@ python3 bin/fetch.py     <handle>                  # download + 16kHz audio
 python3 bin/listen.py    <handle> --project P      # local transcription
 python3 bin/corpus.py    <handle>                  # one markdown corpus
 python3 bin/report.py    <handle> --project P      # countable deltas
+python3 bin/topics.py    <handle> [--define S]      # subjects that beat baseline
+python3 bin/hooks.py     <handle> [--define S]      # hook archetypes, both lenses
 python3 bin/profile.py   <handle>                  # account dossier + csv
+python3 bin/replicate.py <project> [--mode M]      # subjects + hooks that replicate
 python3 bin/voice.py     profile <handle>          # voice fingerprint
 python3 bin/aggregate.py <project> <mode>          # what replicates
 ```
@@ -602,6 +801,21 @@ other explicitly or the agent picks between them at random.
 
 Swipe files quote real transcripts, so they stay local and out of git along with
 everything else under `data/`.
+
+Before that, per creator and per project, on disk:
+
+```
+data/<handle>/profile.md    who they are · is the audience real · is there spread
+data/<handle>/topics.md     which subjects beat their baseline — the brief
+data/<handle>/hooks.md      every winner's opening line + which shapes separate them
+data/<handle>/posts.csv     one row per post, with hook / topics / hook_shapes
+data/<handle>/report.md     countable winner-vs-control structural deltas
+data/<handle>/voice.md      16 dials with target bands + signature phrases
+data/_projects/<p>/<mode>.md          structure that replicated
+data/_projects/<p>/signals-<mode>.md  subjects + hook shapes that replicated
+```
+
+Markdown for the human, JSON alongside it for the agent, same numbers.
 
 ---
 

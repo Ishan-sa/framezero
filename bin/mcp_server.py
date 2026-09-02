@@ -54,14 +54,63 @@ TOOLS = [
          "follower count, median/best/worst plays, engagement, growth "
          "trajectory by quarter, posting cadence, reel durations, hashtags, "
          "disclosed brand partnerships, recurring sponsor tags, caption CTAs, "
-         "and Instagram's own related accounts. Also answers whether the "
-         "account has a wide enough performance spread to be worth studying "
-         "at all. Scrapes the index if it is not already on disk (about a "
+         "and Instagram's own related accounts. Answers the two questions "
+         "that decide whether to study someone at all: does their follower "
+         "count agree with their view count, and is their performance spread "
+         "wide enough that their winners are doing something different. Also "
+         "runs the topics and hooks stages, so one call returns the whole "
+         "account. Scrapes the index if it is not already on disk (about a "
          "minute); does NOT transcribe anything.",
          {"handle": HANDLE,
           "refresh": {"type": "boolean",
                       "description": "re-pull the index even if one exists"}},
          ["handle"], read_only=False),
+    tool("creator_topics",
+         "Which SUBJECTS beat this creator's own rolling baseline, across "
+         "their whole catalogue — not the ~30 transcribed reels. Answers "
+         "\"what should I make?\" rather than \"how is this written?\". "
+         "Every topic is rank-sum tested and the family held to a "
+         "false-discovery correction, so what comes back has already survived "
+         "the multiple-comparisons problem; anything reported as inconclusive "
+         "must NOT be presented to the user as a finding. Free — reads the "
+         "index already on disk. Pass `define` with a path to your own topic "
+         "spec when you know the niche's vocabulary; that lens beats the "
+         "mined one every time.",
+         {"handle": HANDLE,
+          "define": {"type": "string",
+                     "description": "path to a topic spec, .json or .txt"},
+          "min_reels": {"type": "integer",
+                        "description": "never test a topic with fewer "
+                                       "reels (default 6)"}},
+         ["handle"], read_only=False),
+    tool("creator_hooks",
+         "How this creator OPENS, and whether it separates their winners. Two "
+         "lenses: the spoken first ~3 seconds from the transcripts (only the "
+         "~30 reels in the study set, tested with Fisher's exact on winners "
+         "against controls) and the caption opener across every reel in the "
+         "index. Returns the actual opening lines as a readable table — read "
+         "those before the statistics, because thirty hooks you can see beat "
+         "any test run on thirty rows. The hook is the most transferable part "
+         "of another creator's reel: take the SHAPE, never the sentence.",
+         {"handle": HANDLE,
+          "define": {"type": "string",
+                     "description": "path to your own archetype spec"},
+          "seconds": {"type": "number",
+                      "description": "how much of the opening counts as the "
+                                     "hook (default 3)"}},
+         ["handle"], read_only=False),
+    tool("replicated_signals",
+         "Which SUBJECTS and HOOK SHAPES hold up across more than one "
+         "creator. The same replication argument `findings` makes about "
+         "structure, applied to subject matter and openings. REPLICATED is the "
+         "only class that should become a rule; CONTESTED is not a weak "
+         "REPLICATED and must be left out entirely. Pass `handles` to compare "
+         "creators that are not in a project yet.",
+         {"project": PROJECT, "mode": {"type": "string"},
+          "handles": {"type": "string",
+                      "description": "comma-separated handles to compare "
+                                     "instead of a project's creators"}},
+         ["project"], read_only=False),
     tool("findings",
          "Which structural findings REPLICATED across the creators studied "
          "for a mode, and which are one creator's bet. Read this BEFORE any "
@@ -140,8 +189,35 @@ def call(name, a):
             out = run("scrape.py", h, timeout=1800)
             if not idx.exists():
                 return f"scrape failed for @{h}\n{out[-1500:]}"
+        # All three read the same index and make no further requests.
+        run("topics.py", h)
+        run("hooks.py", h)
         run("profile.py", h)
         return read(f"data/{h}/profile.md", f"no profile for @{h}")
+
+    if name in ("creator_topics", "creator_hooks"):
+        h = a["handle"].lstrip("@")
+        stage = "topics" if name == "creator_topics" else "hooks"
+        if not (ROOT / "data" / h / "index.json").exists():
+            return (f"no index for @{h} — call profile_creator first, which "
+                    "scrapes it")
+        args = [h]
+        for k in ("define", "min_reels", "seconds"):
+            if a.get(k) is not None:
+                args += [f"--{k.replace('_', '-')}", a[k]]
+        out = run(f"{stage}.py", *args)
+        return read(f"data/{h}/{stage}.md", f"{stage} failed for @{h}\n{out}")
+
+    if name == "replicated_signals":
+        args = [a["project"]]
+        for k in ("mode", "handles"):
+            if a.get(k):
+                args += [f"--{k}", a[k]]
+        out = run("replicate.py", *args)
+        fn = ("signals-adhoc.md" if a.get("handles") else
+              f"signals-{a['mode']}.md" if a.get("mode") else "signals.md")
+        return read(f"data/_projects/{a['project']}/{fn}",
+                    f"could not build signals\n{out}")
 
     if name == "findings":
         p, m = a["project"], a["mode"]
@@ -222,13 +298,31 @@ def main():
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "framezero", "version": "1.0.0"},
                 "instructions":
-                    "Study a creator, then write like them. Order matters: "
-                    "profile_creator to decide if they are worth studying, "
-                    "findings before any transcript, transcripts last. Only "
-                    "REPLICATED findings become rules — a finding from one "
-                    "creator is a bet. Never blend two creators' voices. "
-                    "Always check_script a draft before showing it, at the "
-                    "USER's speaking rate, not the default 210."}})
+                    "Study a creator, then write like them. Order "
+                    "matters, and skipping ahead is how you end up "
+                    "confidently wrong.\n"
+                    "1. profile_creator — does their follower count agree "
+                    "with their view count, and do their winners actually "
+                    "differ from their losers? If not, say so and stop; the "
+                    "user is about to learn from an account not worth "
+                    "copying.\n"
+                    "2. creator_topics and creator_hooks — what to make and "
+                    "how to open it. Both are free and neither needs "
+                    "transcripts.\n"
+                    "3. replicated_signals — before anything becomes a rule.\n"
+                    "4. findings, then transcripts LAST. Reading transcripts "
+                    "first makes you find patterns whether or not they are "
+                    "there.\n"
+                    "Only REPLICATED findings become rules; a single "
+                    "creator's finding is a bet, and CONTESTED is not a weak "
+                    "REPLICATED. Anything these tools call inconclusive is "
+                    "not a finding and must not be reported as one. The goal "
+                    "is never to reproduce a creator's script — take the "
+                    "SHAPE of a hook and the SUBJECT that works, then write "
+                    "the sentences in the user's own voice. Never blend two "
+                    "creators' voices. Always check_script a draft before "
+                    "showing it, at the USER's speaking rate, not the "
+                    "default 210."}})
         elif method == "notifications/initialized":
             continue
         elif method == "tools/list":

@@ -46,6 +46,8 @@
     }
   },
   "baseline_window_days": 90,
+  "topic_spec": "specs/real-estate.topics.txt",
+  "hook_spec": "specs/real-estate.hooks.txt",
   "since": null,
   "creators": {
     "some_handle": {

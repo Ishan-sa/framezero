@@ -1,0 +1,26 @@
+# Topic spec — real estate
+#
+# Pass with:  ./framezero topics <handle> --define specs/real-estate.topics.txt
+#
+# One topic per line:   name: keyword, keyword, keyword
+# A keyword is matched as a whole phrase, case-insensitively, anywhere in the
+# caption. Prefix with `re:` for a real regular expression.
+#
+# This is the lens worth writing. The mined lens infers subject matter from
+# word counts and gets it roughly right; you already KNOW what the subjects in
+# your niche are, and naming them yourself is also what makes two creators
+# comparable — the cross-creator pass can only line up topics that share a
+# name.
+
+first-time buyers: first time buyer, first-time buyer, fthb, starter home, first place, first home
+market update: market update, interest rate, rate cut, rate drop, housing market, market shift, inventory
+price drop: price drop, reduced, price cut, below asking, motivated seller
+listing tour: just listed, new listing, tour, walkthrough, open house, take a look inside
+sold: just sold, sold over asking, sold in, closed on
+investment: cap rate, cash flow, rental income, investment property, roi, duplex, house hack
+new build: presale, pre-construction, new build, assignment, developer
+renovation: renovation, reno, flip, before and after, fixer upper
+neighbourhood: neighbourhood, neighborhood, best area, where to live, commute, school district
+mistakes: mistake, do not buy, avoid, red flag, deal breaker, what to look for
+financing: mortgage, down payment, pre-approval, preapproved, closing costs, lender
+luxury: luxury, penthouse, waterfront, estate, multi-million, dream home

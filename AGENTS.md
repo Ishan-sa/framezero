@@ -25,10 +25,24 @@ Any other client, in its JSON config:
                               "args": ["/abs/path/to/bin/mcp_server.py"]}}}
 ```
 
-Eight tools: `list_projects`, `profile_creator`, `findings`, `creator_report`,
-`voice_profile`, `check_script`, `transcripts`, `run_pipeline`. Stdlib only, no
-install. The rest of this file still applies — it is the reasoning behind the
-tools, and sections 2, 7 and 8 in particular are not encoded in the schemas.
+Eleven tools. Stdlib only, no install:
+
+| tool | cost | what it answers |
+|---|---|---|
+| `list_projects` | free | what already exists on disk |
+| `profile_creator` | ~1 min | who they are, and is their audience real |
+| `creator_topics` | free | which **subjects** beat their own baseline |
+| `creator_hooks` | free | how they **open**, and whether it separates winners |
+| `replicated_signals` | free | which subjects and hooks hold up across creators |
+| `findings` | free | which **structure** replicated |
+| `creator_report` | free | one creator's winner/control deltas |
+| `voice_profile` | free | how they sound: 16 dials + signature phrases |
+| `check_script` | free | score a draft — **run this before showing any draft** |
+| `transcripts` | free | the transcripts, read LAST |
+| `run_pipeline` | 20–60 min | the whole thing. Confirm with the user first. |
+
+The rest of this file still applies — it is the reasoning behind the tools, and
+sections 2, 7 and 8 in particular are not encoded in the schemas.
 
 ---
 
@@ -187,21 +201,80 @@ one scrape:
 ./framezero profile <handle>
 ```
 
-Writes `data/<handle>/profile.md`, `profile.json`, and `posts.csv` — identity,
-bio, followers, median/best/worst plays, engagement, growth trajectory by
-quarter, posting cadence, reel durations, hashtags, audio type, disclosed brand
-partnerships and who sponsored them, the caption CTA they actually run, and
-Instagram's own list of related accounts.
+That one command runs three free stages and writes six files:
 
-**Use it as a gate.** The dossier includes a section headed *"Is there anything
-to learn here?"* — the ratio of the creator's top decile to their own median. If
-that ratio is near 1, their winners are not doing anything different and the
-expensive pass will produce nothing. Tell the user before spending the hour.
+| file | what it answers |
+|---|---|
+| `profile.md` | who they are, how they earn, **is their audience real** |
+| `topics.md` | which **subjects** beat their own baseline |
+| `hooks.md` | how they **open**, and whether it separates their winners |
+| `posts.csv` | every post, one row each — with `hook`, `topics` and `hook_shapes` columns |
+| `profile.json` / `topics.json` / `hooks.json` | the same, structured |
+
+None of it transcribes anything. All three read the index that the scrape put
+on disk, so re-running them costs nothing.
+
+**Use it as a gate — there are two gates, and both are in `profile.md`.**
+
+1. *"Does the audience match the views?"* — plays per follower over **recent**
+   reels, read together with engagement. A million followers and twenty
+   thousand views is not a creator to study, and this section says so in
+   words. If it reports **the numbers do not add up**, tell the user before
+   they build a content strategy on that account.
+2. *"Is there anything to learn here?"* — the ratio of the creator's top decile
+   to their own median. If that ratio is near 1, their winners are not doing
+   anything different and the expensive pass will produce nothing.
+
+### What topics.md and hooks.md are for
+
+This is the part that answers **"what do I make tomorrow"**, and it is the part
+users actually want.
+
+- `topics.md` opens with a **brief**: the subjects that beat this creator's own
+  rolling baseline, plus the ones that cost them. Every topic is rank-sum
+  tested against the rest of the catalogue and the whole family is held to a
+  Benjamini-Hochberg false-discovery rate — because testing six hundred mined
+  terms against one catalogue guarantees a few spectacular coincidences.
+  **Anything the file calls `inconclusive` is not a finding. Do not report it
+  as one.**
+- `hooks.md` opens with the actual opening line of every transcribed reel, in
+  outlier order. **Read that table before the statistics under it** — thirty
+  hooks you can see beat any test run on thirty rows.
+
+Both take `--define <spec>`, and you should push the user toward it:
+
+```bash
+./framezero topics <handle> --define specs/real-estate.topics.txt
+./framezero hooks  <handle> --define specs/real-estate.hooks.txt
+```
+
+The mined lens infers subject matter from word counts. The user already knows
+what the subjects in their niche are, and naming them is also what makes two
+creators comparable — the cross-creator pass can only line up topics that share
+a name. `specs/` holds a worked example of both formats; copy the shape.
 
 It is also the answer to "who else should I study": `neighbours` in
 `profile.json` is Instagram's own related-accounts list for that handle.
 
-Three limits to state plainly rather than paper over:
+### Then compare two creators before trusting either
+
+```bash
+./framezero signals <project> --mode informational
+./framezero signals <project> --handles handle_a,handle_b   # no config edit
+```
+
+A subject or a hook shape that works for one creator is that creator's
+territory. `signals.md` gives it the same verdicts the structural pass uses —
+**REPLICATED / CONTESTED / SINGLE / DEAD** — and only REPLICATED should ever
+become a rule. CONTESTED is not a weak REPLICATED: two creators pointing
+opposite ways means the effect belongs to something nobody measured.
+
+Hook shapes replicate more meaningfully than subjects do, and it is worth
+telling the user why: every creator is scored against the *same* archetype
+list, so those names line up by construction, whereas two creators only share a
+topic name when they happen to use the same word for the same thing.
+
+Six limits to state plainly rather than paper over:
 
 - **No follower history.** Instagram returns one number, today. The trajectory
   table is median plays per quarter, which is a proxy and moves with the
@@ -209,6 +282,32 @@ Three limits to state plainly rather than paper over:
 - **Disclosed sponsorship only.** `paid_partnership` is the platform flag.
   Sponsor tags, recurring @mentions and caption CTAs catch more, never all.
 - **Location only where tagged**, which is usually nowhere.
+- **A caption is not the video.** The topic lenses read captions. A reel about
+  something its caption never names is invisible to all of them.
+- **Correlation.** A topic that overperforms is a place to look, not a proven
+  cause — the hook and the structure travel with the subject.
+- **The spoken hook lens is ~30 reels**, chosen as the two tails of the
+  catalogue. It shows the user hooks to read; it cannot prove an archetype wins
+  on its own, and Fisher's exact on 15-vs-15 will rarely reach significance
+  even when the split looks lopsided. Say "the winners lean on this", not
+  "this works".
+
+---
+
+### Wire the specs into the project so `run` picks them up
+
+Two optional keys in `projects/<name>.json`, both paths relative to the repo
+root. When present, `./framezero run` passes them to every creator's topics and
+hooks stage automatically:
+
+```json
+"topic_spec": "specs/real-estate.topics.txt",
+"hook_spec":  "specs/real-estate.hooks.txt"
+```
+
+Worth doing early. A shared spec is what lets `signals` line two creators up on
+the same topic name, and topic names are the one thing the cross-creator pass
+cannot infer for you.
 
 ---
 
@@ -260,14 +359,21 @@ Two ordering constraints you must not "optimise" away:
 ## 7. Read the outputs in this order
 
 ```
-data/_projects/<project>/<mode>.md   ← START HERE. What replicated across creators.
-data/<handle>/profile.md             ← who they are, what they post, how they earn
-data/<handle>/report.md              ← that creator's countable deltas
-data/<handle>/voice.md               ← how they sound: dials + signature phrases
-data/<handle>/corpus.md              ← the transcripts themselves (read LAST)
-prompts/extract.md                   ← how to turn the above into a skill
-prompts/emit.md                      ← how the skill must be written
+data/_projects/<project>/<mode>.md          ← START HERE. Structure that replicated.
+data/_projects/<project>/signals-<mode>.md  ← subjects + hook shapes that replicated
+data/<handle>/profile.md                    ← who they are, and is the audience real
+data/<handle>/topics.md                     ← which subjects beat their own baseline
+data/<handle>/hooks.md                      ← how they open — the transferable part
+data/<handle>/report.md                     ← that creator's countable deltas
+data/<handle>/voice.md                      ← how they sound: dials + signature phrases
+data/<handle>/corpus.md                     ← the transcripts themselves (read LAST)
+prompts/extract.md                          ← how to turn the above into a skill
+prompts/emit.md                             ← how the skill must be written
 ```
+
+The two `_projects` files come first for the same reason: they are the only
+files in the tree that have been checked against a second creator. Everything
+under `data/<handle>/` is one account's habits until proven otherwise.
 
 Then emit one skill **per mode** (not per creator) into `out/skills/`, plus a
 separate voice layer. Structure and voice stay in separate files on purpose:
@@ -332,14 +438,18 @@ Rules for using it:
 ## 10. Repository map
 
 ```
-framezero              CLI entry point — new / run / show / voice / check
+framezero              CLI: new / run / show / profile / topics / hooks /
+                       signals / voice / check
 bin/scrape.py          public GraphQL index + real play counts
 bin/rank.py            outlier score vs a ±90-day rolling median
 bin/fetch.py           mp4 download, ffmpeg to 16kHz mono wav
 bin/listen.py          whisper.cpp, seeded with the niche vocabulary
 bin/corpus.py          ranking + transcripts into one markdown file
 bin/report.py          countable winner/control deltas, per creator
-bin/profile.py         whole-account dossier: md + json + csv, no transcription
+bin/profile.py         whole-account dossier + audience-health verdict
+bin/topics.py          which subjects beat the baseline, FDR-corrected
+bin/hooks.py           spoken + written hook archetypes, per creator
+bin/replicate.py       subjects and hooks that hold up across creators
 bin/voice.py           16 voice dials, signature phrases, draft scoring
 bin/mcp_server.py      the same pipeline as MCP tools, over stdio
 bin/aggregate.py       pools creators, assigns replication verdicts
@@ -347,6 +457,7 @@ bin/project.py         project config, niche lexicon derivation
 prompts/extract.md     how to read the outputs
 prompts/emit.md        how to write the skills
 projects/example.json  placeholder config — copy this shape
+specs/                 worked topic + hook specs for --define, copy the shape
 ```
 
 ---
@@ -357,7 +468,10 @@ Before you tell the user you are finished:
 
 - [ ] `./framezero show <project>` lists every creator with a transcript count > 0
 - [ ] `data/_projects/<project>/<mode>.md` exists for every mode and has verdicts
-- [ ] every creator has a `profile.md` and a `voice.md` with 16 dials
+- [ ] `data/_projects/<project>/signals-<mode>.md` exists and you have read it
+- [ ] every creator has a `profile.md`, `topics.md`, `hooks.md` and a `voice.md`
+- [ ] you told the user which creators failed the audience-health check, if any
+- [ ] nothing the tool called `inconclusive` was reported to the user as a finding
 - [ ] `out/skills/` has one skill per mode, plus a voice layer
 - [ ] every rule in a skill traces to a REPLICATED finding; bets are labelled as bets
 - [ ] any sample script you wrote passes `./framezero check` at the user's own wpm

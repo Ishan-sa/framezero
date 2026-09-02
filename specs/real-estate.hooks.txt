@@ -1,0 +1,25 @@
+# Hook archetype spec — real estate
+#
+# Pass with:  ./framezero hooks <handle> --define specs/real-estate.hooks.txt
+#
+# One archetype per line:   name: pattern, pattern, pattern
+# A bare pattern is matched as a phrase with word boundaries. Prefix with `re:`
+# for a real regular expression.
+#
+# Replacing the built-in set is the point of this file. The default archetypes
+# were written for software and news niches — "just launched", "completely
+# free" — and a property account will match almost none of them. If hooks.md
+# tells you most openings matched nothing, that is this file's job.
+
+price reveal: re:^\W*(?:this|it)\b.{0,40}\b(?:costs?|is|sold for|listed at)\b.{0,12}\$, guess how much, guess the price, you won't believe the price
+walk-in: welcome to, step inside, come with me, let me take you, this is
+number: re:^\W*\d{1,2}\b, re:\b\d{1,2}\s+(?:things|reasons|mistakes|tips|red flags|questions)\b
+contrarian: stop renting, don't buy, nobody tells you, everyone is wrong, you don't need 20, biggest myth
+mistake/warning: biggest mistake, red flag, before you buy, this will cost you, do not sign, avoid
+market claim: the market is, prices are, rates just, if you're waiting, right now in
+qualification: can you afford, how much you need, do you qualify, what you actually need
+local authority: re:\bin\s+[A-Z][a-z]+\b, best area, nobody moves to, if you live in
+proof: i sold, i've sold, my client, last week i, after \d+ years
+reveal/tour: inside this, this house, look at this, hidden, secret room
+comparison: versus, vs, compared to, instead of, cheaper than
+question: re:^\W*(?:what|why|how|who|when|where|which|can|should|would|is|are)\b[^.!?]*\?

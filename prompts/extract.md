@@ -8,15 +8,34 @@ It produces the skill files described in `prompts/emit.md`.
 You are analysing one creator's short-form video catalogue to extract a
 *reusable writing method*, not to summarise their content.
 
-**Read `data/_projects/<project>/<mode>.md` FIRST if it exists.** It states
-which findings replicated across creators and which are one creator's habit,
-computed mechanically. A finding marked DEAD or CONTESTED there must not
-appear in your output as advice, however good it looks in the transcripts. A
-finding marked SINGLE may appear, labelled as that creator's habit and a bet.
+## Read in this order, and do not skip ahead
 
-Then read `data/<handle>/report.md` — the countable features, already
-measured. Start from those numbers rather than from impressions; you will
-find patterns in transcripts whether or not they are there.
+Almost everything below has already been **measured**. Your job is to turn
+measurements into a method, not to rediscover them by eye — you will find
+patterns in transcripts whether or not they are there, which is exactly why
+the numbers come first.
+
+| # | file | what it settles |
+|---|---|---|
+| 1 | `data/_projects/<p>/<mode>.md` | which **structure** replicated across creators |
+| 2 | `data/_projects/<p>/signals-<mode>.md` | which **subjects and hook shapes** replicated |
+| 3 | `data/<handle>/topics.md` | which subjects beat this creator's own baseline |
+| 4 | `data/<handle>/hooks.md` | every winner's opening line, and which shapes separate them |
+| 5 | `data/<handle>/report.md` | this creator's countable winner/control deltas |
+| 6 | `data/<handle>/voice.md` | 16 measured voice dials with target bands |
+| 7 | `data/<handle>/corpus.md` | the transcripts — **LAST** |
+
+Two rules that come out of that table and override anything you think you see
+in the transcripts:
+
+- **A finding marked DEAD or CONTESTED must not appear as advice**, however
+  good it looks. A finding marked SINGLE may appear, labelled as that
+  creator's habit and a bet.
+- **Anything the tool calls `inconclusive` is not a finding.** `topics.md` and
+  `hooks.md` hold every candidate to a false-discovery correction precisely
+  because testing hundreds of them against one catalogue throws up
+  coincidences. Promoting an inconclusive row to a rule undoes the only thing
+  protecting the output from noise.
 
 You have `corpus.md`: a full ranked table of their reels, plus timestamped
 transcripts for a WINNERS cohort and a CONTROLS cohort. Winners beat the
@@ -59,13 +78,46 @@ Give the count and the median outlier score per mode. If one mode
 systematically outperforms, say so — that is a strategic finding, not a
 structural one, and the writer needs it.
 
-### 2. Structure profile, per mode
+### 2. Subject matter — what to write about
+
+`topics.md` opens with a brief: the subjects that beat this creator's own
+rolling baseline, and the ones that cost them. `signals-<mode>.md` says which
+of those held for a second creator.
+
+Produce a short list the writer can actually pick from:
+
+- **Territory that replicates.** Subjects REPLICATED across creators. These
+  are properties of the niche and belong in the skill as standing guidance.
+- **Territory that belongs to one creator.** SINGLE subjects, labelled as
+  bets, with the creator named so the writer knows whose ground they are
+  borrowing.
+- **What to avoid.** Subjects that measurably underperformed. This is usually
+  the most actionable half and it is routinely ignored — an account whose own
+  promotional posts run at 0.55× baseline needs telling.
+
+Do **not** turn a topic into a template sentence. A subject is territory; the
+writer supplies their own material inside it. If you find yourself writing
+"open with: China just released…", you have crossed from method into
+plagiarism.
+
+### 3. Structure profile, per mode
 
 For each mode with at least three transcribed reels, produce:
 
-- **Hook taxonomy.** Name each archetype you find, give its frequency in
-  winners vs controls, and quote two real examples verbatim with timestamps.
-  Name the archetype for what it *does* to the viewer, not for its grammar.
+- **Hook taxonomy.** `hooks.md` has already classified every transcribed
+  opening into archetypes and counted winners against controls with Fisher's
+  exact. **Start from that table, do not rebuild it.** Your contribution is
+  the part the classifier cannot do: read the actual opening lines in outlier
+  order and say what the high performers are *doing to the viewer* that the
+  low ones are not. Where the built-in archetypes clearly miss something this
+  niche does, name the new shape and say so — that is a request for a
+  `--define` spec, and worth flagging to the user.
+
+  Two cautions the file itself makes: with ~15 winners against ~15 controls,
+  Fisher's exact will rarely reach significance even when a split looks
+  lopsided, so write "the winners lean on this" rather than "this works". And
+  never lift a hook sentence into the skill. The shape transfers; the sentence
+  makes a knock-off.
 - **Beat map.** The actual timing, taken from the transcript timestamps, not
   from theory. When does the hook end. When does the first substantive claim
   land. When does the payoff arrive. When does the CTA start. Give real
@@ -83,21 +135,27 @@ For each mode with at least three transcribed reels, produce:
   second that implies. Note whether winners are longer or shorter than
   controls — do not assume shorter.
 
-### 3. Voice profile
+### 4. Voice profile
 
 Separate from structure, because the two are used independently.
 
+**`voice.md` has already measured this** — 16 dials, each with a target band
+derived from that creator's own winners. Do not restate the numbers as prose
+and do not contradict them. Your job is the residue: the things a dial cannot
+hold. Register, how jargon is handled, humour, and any genuinely distinctive
+recurring construction. Give three verbatim lines that are maximally
+characteristic.
+
 Hard cap: **200 words.** Long style documents measurably degrade generation —
-the model starts imitating the description instead of the voice. Be
-ruthlessly specific and short. Cover only: diction and register, sentence
-length pattern, person and mode of address, contractions and filler, how
-jargon is handled, humour, and any genuinely distinctive recurring
-construction. Give three verbatim lines that are maximally characteristic.
+the model starts imitating the description instead of the voice. The bands
+carry the precision; prose that tries to carry it too just dilutes them.
 
 Note explicitly anything that would be a *mistake to copy* — verbal tics,
-crutches, anything identity-bound to that specific creator.
+crutches, anything identity-bound to that specific creator. Voice is the one
+layer that must never be pooled across creators: structure can be averaged
+because it is a craft, voice cannot because it is a person.
 
-### 4. Swipe file
+### 5. Swipe file
 
 The winning transcripts, each annotated inline with which structural move is
 happening at each beat. This is the evidence base; the skill points back to

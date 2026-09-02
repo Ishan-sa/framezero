@@ -43,10 +43,28 @@ headings, stop and restart."
 about what this specific video is arguing before a line gets written. Most
 weak short-form is weak because it has two arguments.
 
-**Hook playbook.** The archetypes from the analysis, each with its name, when
-it applies, and a verbatim example from the corpus. Include the banned openings
-— the ones that appeared in controls at the same rate as winners, and the
-generic ones ("Welcome to", "Check out this", "In this video").
+**Topic playbook.** Before any structure advice, the skill states what this
+mode is *about*. Take the REPLICATED subjects from `signals-<mode>.md` as
+standing territory, the SINGLE ones as labelled bets, and the underperforming
+ones as an explicit avoid-list — that half is usually more useful and is
+usually the half that gets dropped.
+
+Write territory, never sentences. "Open-source tooling and what it replaces"
+is territory the writer fills with their own material. "China just released
+another AI video model" is somebody's actual reel and putting it in a skill is
+how you ship a knock-off. If a line in your topic section could be read aloud
+as-is, delete it and write the category instead.
+
+**Hook playbook.** The archetypes from the analysis, each with its name, what
+it *does to the viewer*, and when it applies. Include the banned openings — the
+ones that appeared in controls at the same rate as winners, and the generic
+ones ("Welcome to", "Check out this", "In this video").
+
+Examples go in `swipe-file.md`, not in `SKILL.md`, and they are labelled **for
+recognition, not reuse**. The shape is the transferable part; the sentence
+belongs to the person who already has the audience for it. A skill that hands
+the writer a hook to paste has quietly changed jobs from teaching a craft to
+laundering someone's work.
 
 **Beat map with real numbers.** The timings from the analysis, as a target the
 writer works against. Say where the payoff lands and where the CTA starts.
@@ -75,8 +93,13 @@ the writer explicitly asks, and warn them what it costs.
 `voice.md` into the skill, and make the check loop mandatory:
 
 ```
-./framezero check draft.txt --like <handle>
+./framezero check draft.txt --like <handle> --wpm <the writer's own pace>
 ```
+
+`--wpm` is the **writer's** speaking rate, not the creator's. The default of
+210 is the studied creators' median and is faster than most people talk;
+getting it wrong makes every script about 20% too long. Have them time
+themselves reading 200 words aloud.
 
 Every draft gets written, checked, and fixed before it is returned. A skill
 that emits a script without running the check is not finished. Say this in the

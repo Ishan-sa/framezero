@@ -131,9 +131,17 @@ credit credits repost ig instagram viral trending fyp explore explorepage
 
 DROP = STOP | FRAMING | BOILERPLATE
 
-# The verdict bands. A topic must clear a real margin AND survive the
-# false-discovery correction before it is called a finding.
-OVER, UNDER = 1.30, 0.77
+# The verdict bands, applied only AFTER a topic has survived the
+# false-discovery correction. They were originally set at 1.30/0.77, which was
+# calibrated for raw mined terms before the correction existed -- and once it
+# did exist, that gate was double-counting the same scepticism and throwing
+# away real findings. A declared topic on 143 reels at 1.26x with p=0.0001 is
+# not a coincidence, it is a 26% lift on a quarter of a catalogue.
+#
+# So the floor is now modest, and its only job is the one the p-value cannot
+# do: a large enough sample makes a trivial effect significant, and a 5% lift
+# is not worth changing what you make. 15% is.
+OVER, UNDER = 1.15, 0.87
 HIT = 1.5      # a reel "hits" when it beats its neighbourhood by half again
 NOUNY = 0.45   # share of mid-sentence uses that must be capitalised
 MIN_OCC = 3    # occurrences before the capitalisation test means anything

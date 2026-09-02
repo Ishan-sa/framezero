@@ -1,0 +1,26 @@
+# Topic spec — AI tools, automation and workflow software
+#
+# ./framezero topics <handle> --define specs/ai-tools.topics.txt
+#
+# One topic per line:  name: keyword, keyword, keyword
+# Keywords are synonyms for ONE subject, matched as whole phrases,
+# case-insensitively, anywhere in the caption.
+#
+# Grouped from what the mined lens surfaced on its own across three accounts:
+# github, cursor, kimi and "completely free" all appeared without being asked
+# for. Naming them as territory is what lets two creators line up on the same
+# row — the cross-creator pass can only replicate topics that share a name.
+
+open source: github, open source, open-source, opensource, self-hosted, self hosted, free and open, mit license
+free tier: completely free, totally free, for free, 100% free, no credit card, free forever, without paying, free version
+coding agents: cursor, claude code, copilot, windsurf, vibe coding, vibecoding, antigravity, codex, cline
+chinese models: deepseek, kimi, qwen, minimax, glm, china just, chinese ai, china released, hunyuan
+video generation: sora, veo, runway, kling, hailuo, image to video, text to video, ai video, video model
+image generation: midjourney, nano banana, flux, ideogram, stable diffusion, ai image, image model
+agents and automation: ai agent, agentic, n8n, make.com, zapier, automation, workflow, mcp, skills
+big lab release: openai, anthropic, google, gemini, chatgpt, claude, grok, llama, meta ai
+app builders: replit, lovable, bolt, base44, v0, no code, nocode, build an app
+research and browsing: perplexity, deep research, notebooklm, browser agent, web search
+cost and pricing: pricing, costs, cheaper, per month, api cost, tokens, credits, subscription
+jobs and careers: job, hiring, career, freelance, client, agency, get paid, side income
+course or cohort: cohort, webinar, bootcamp, enroll, enrol, register now, live class, masterclass

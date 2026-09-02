@@ -110,6 +110,31 @@ a subject at 10× baseline. It was noise. Four of 132 survived.
 
 ---
 
+## 🕵️ Don't know whose work to study?
+
+That is the question that comes before everything else, and guessing handles is
+how people waste their first hour.
+
+```bash
+./framezero neighbours                       # from catalogues already on disk
+./framezero neighbours <handle> --probe      # and check they have an audience
+```
+
+Creators tag each other, run collabs, and name each other in captions. All of
+that is already in the index you paid for. `neighbours` ranks those handles by
+how many of *your* creators point at them — because two unrelated accounts
+naming the same person is a niche, while one account tagging somebody four
+hundred times is a business partner.
+
+`--probe` then samples each candidate and reports median plays, so you find out
+which names have an audience before you commit to any of them. It has already
+killed a candidate that looked ideal and turned out to run 150 plays a reel.
+
+It will not find the ones nobody tags, and a tag is not a similarity — read the
+profile before you trust the name.
+
+---
+
 ## 🔎 Profile any creator in a minute
 
 Before you spend an hour transcribing anyone, find out who they are.
@@ -646,6 +671,8 @@ flowchart LR
   H --> R["replicate.py<br/><small>subjects + hooks replicate?</small>"]
   R --> I(["your agent<br/><small>writes the skill</small>"])
   A -.->|no transcription needed| T
+  A -.->|already on disk| N["neighbours.py<br/><small>who else to study</small>"]
+  N -.-> A
 ```
 
 `topics.py`, `hooks.py` and `profile.py` read the index the scrape already
@@ -666,6 +693,7 @@ python3 bin/topics.py    <handle> [--define S]      # subjects that beat baselin
 python3 bin/hooks.py     <handle> [--define S]      # hook archetypes, both lenses
 python3 bin/profile.py   <handle>                  # account dossier + csv
 python3 bin/replicate.py <project> [--mode M]      # subjects + hooks that replicate
+python3 bin/neighbours.py [handles] [--probe]     # who else in the niche to study
 python3 bin/voice.py     profile <handle>          # voice fingerprint
 python3 bin/aggregate.py <project> <mode>          # what replicates
 ```

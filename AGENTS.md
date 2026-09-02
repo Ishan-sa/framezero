@@ -25,11 +25,12 @@ Any other client, in its JSON config:
                               "args": ["/abs/path/to/bin/mcp_server.py"]}}}
 ```
 
-Eleven tools. Stdlib only, no install:
+Twelve tools. Stdlib only, no install:
 
 | tool | cost | what it answers |
 |---|---|---|
 | `list_projects` | free | what already exists on disk |
+| `niche_neighbours` | free | **who else to study** — start here if they have no handles |
 | `profile_creator` | ~1 min | who they are, and is their audience real |
 | `creator_topics` | free | which **subjects** beat their own baseline |
 | `creator_hooks` | free | how they **open**, and whether it separates winners |
@@ -193,6 +194,32 @@ apart. Same creator can appear under more than one mode.
 ---
 
 ## 5. Start cheap: profile before you commit
+
+### If they do not know whose work to study
+
+Most people arrive with one or two handles and a vague sense that there must be
+others. Do not make them guess, and do not guess for them — a handle you
+invented either 404s or, worse, resolves to somebody irrelevant.
+
+```bash
+./framezero neighbours                        # every catalogue on disk
+./framezero neighbours <handle> --probe       # and check they have an audience
+```
+
+Creators tag each other, run collabs, and name each other in captions, and all
+of that is already sitting in `index.json`. `neighbours` ranks those handles by
+how many of *your* creators point at them — two unrelated accounts naming the
+same person is a niche; one account tagging somebody four hundred times is a
+business partner.
+
+`--probe` then pulls a three-page sample of each candidate and reports median
+plays, because the list is worthless if half the names have no audience. That
+check has already killed a candidate that looked perfect on paper and turned
+out to run 150 plays a reel.
+
+Two limits worth saying out loud to the user: a tag is not a similarity, so
+read `profile.md` before adding anyone to a project; and the best creator in a
+niche is often the one who never collabs, so this will never be the whole list.
 
 A full run costs 20–60 minutes, almost all of it transcription. A dossier costs
 one scrape:
@@ -439,7 +466,7 @@ Rules for using it:
 
 ```
 framezero              CLI: new / run / show / profile / topics / hooks /
-                       signals / voice / check
+                       signals / neighbours / voice / check
 bin/scrape.py          public GraphQL index + real play counts
 bin/rank.py            outlier score vs a ±90-day rolling median
 bin/fetch.py           mp4 download, ffmpeg to 16kHz mono wav
@@ -450,6 +477,7 @@ bin/profile.py         whole-account dossier + audience-health verdict
 bin/topics.py          which subjects beat the baseline, FDR-corrected
 bin/hooks.py           spoken + written hook archetypes, per creator
 bin/replicate.py       subjects and hooks that hold up across creators
+bin/neighbours.py      who else in the niche is worth studying, from co-tags
 bin/voice.py           16 voice dials, signature phrases, draft scoring
 bin/mcp_server.py      the same pipeline as MCP tools, over stdio
 bin/aggregate.py       pools creators, assigns replication verdicts

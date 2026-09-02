@@ -7,6 +7,7 @@
   ./framezero topics  <handle> [--define f]  which SUBJECTS beat their own baseline
   ./framezero hooks   <handle> [--define f]  how they open, and whether it matters
   ./framezero signals <project> [--mode M]   which subjects and hooks REPLICATE
+  ./framezero neighbours [handles] [--probe]  who else in this niche is worth studying
   ./framezero voice <handle> [--project P]   derive a creator's voice fingerprint
   ./framezero check <script> --like <handle>  score a draft against that voice
   ./framezero show <project>
@@ -158,6 +159,16 @@ if __name__ == "__main__":
     hk.add_argument("--min-reels", type=int, default=6)
     hk.add_argument("--since")
 
+    nb = sub.add_parser("neighbours",
+                        help="who else in this niche is worth studying")
+    nb.add_argument("handles", nargs="*",
+                    help="default: every catalogue already on disk")
+    nb.add_argument("--probe", action="store_true",
+                    help="pull a sample of each candidate and check it has an audience")
+    nb.add_argument("--top", type=int, default=10)
+    nb.add_argument("--min-sources", type=int, default=1,
+                    help="only candidates cited by at least this many of your creators")
+
     v = sub.add_parser("voice", help="derive a creator's voice fingerprint")
     v.add_argument("handle"); v.add_argument("--project")
 
@@ -208,6 +219,12 @@ if __name__ == "__main__":
             if getattr(a, flag, None) is not None:
                 args += [f"--{flag}", getattr(a, flag)]
         args += ["--min-reels", a.min_reels]
+        sys.exit(0 if sh(*args) else 1)
+    elif a.cmd == "neighbours":
+        args = ["neighbours.py", *[h.lstrip("@") for h in a.handles],
+                "--top", a.top, "--min-sources", a.min_sources]
+        if a.probe:
+            args.append("--probe")
         sys.exit(0 if sh(*args) else 1)
     elif a.cmd == "voice":
         args = ["voice.py", "profile", a.handle]

@@ -111,6 +111,24 @@ TOOLS = [
                       "description": "comma-separated handles to compare "
                                      "instead of a project's creators"}},
          ["project"], read_only=False),
+    tool("niche_neighbours",
+         "WHO ELSE should the user be studying. Answers the question that "
+         "comes before every other tool here: the niche is full of accounts "
+         "and they do not know which are worth an hour. Reads catalogues "
+         "already on disk — creators tag, collab with and name each other, "
+         "and those handles are already paid for. Set `probe` to pull a "
+         "sample of each candidate and report whether it has an audience at "
+         "all; without it this is free and instant. A tag is not a "
+         "similarity, so read profile_creator on a candidate before "
+         "recommending it.",
+         {"handles": {"type": "string",
+                      "description": "comma-separated handles to mine; "
+                                     "default is every catalogue on disk"},
+          "probe": {"type": "boolean",
+                    "description": "check each candidate has an audience "
+                                   "(makes requests; slower)"},
+          "top": {"type": "integer", "description": "candidates to keep"}},
+         [], read_only=False),
     tool("findings",
          "Which structural findings REPLICATED across the creators studied "
          "for a mode, and which are one creator's bet. Read this BEFORE any "
@@ -219,6 +237,15 @@ def call(name, a):
         return read(f"data/_projects/{a['project']}/{fn}",
                     f"could not build signals\n{out}")
 
+    if name == "niche_neighbours":
+        args = [h.strip().lstrip("@")
+                for h in (a.get("handles") or "").split(",") if h.strip()]
+        args += ["--top", a.get("top") or 10]
+        if a.get("probe"):
+            args.append("--probe")
+        out = run("neighbours.py", *args)
+        return read("data/_neighbours.md", f"could not find neighbours\n{out}")
+
     if name == "findings":
         p, m = a["project"], a["mode"]
         return read(f"data/_projects/{p}/{m}.md",
@@ -301,6 +328,8 @@ def main():
                     "Study a creator, then write like them. Order "
                     "matters, and skipping ahead is how you end up "
                     "confidently wrong.\n"
+                    "0. niche_neighbours — if the user does not yet know "
+                    "whose work to study, start here. It is free.\n"
                     "1. profile_creator — does their follower count agree "
                     "with their view count, and do their winners actually "
                     "differ from their losers? If not, say so and stop; the "

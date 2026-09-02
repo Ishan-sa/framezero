@@ -131,6 +131,21 @@ For each mode with at least three transcribed reels, produce:
   before into why it matters. Find it. Quote several verbatim. Note its
   position.
 - **CTA shape.** Exact wording patterns, position, and what is being asked.
+
+  **Test it, do not assume it.** Nearly every creator in this format runs a
+  comment-to-DM trigger, and the usual conclusion — "it appears in winners and
+  controls alike, so it is a habit" — is the weakest form of the argument,
+  because a habit cannot be tested against itself. Split the *whole catalogue*
+  on whether the caption leads with the trigger and rank-sum the two groups.
+  On three catalogues and 2,043 reels, two creators turned out to make a real
+  choice (115 vs 1,305 and 108 vs 119) and neither split landed on anything.
+  "It neither buys reach nor costs it" is a far stronger and more useful thing
+  to tell a writer than "we cannot tell them apart."
+
+  Then say what plays cannot see. The trigger's job is DMs, and DMs are not in
+  the index. A null result on reach is not a reason to drop a CTA that is
+  earning somebody leads, and the analysis must say so or it will be read that
+  way.
 - **Length.** Median and range of duration and word count, and the words per
   second that implies. Note whether winners are longer or shorter than
   controls — do not assume shorter.
